@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { slugify, uniqueSlug } from "@/lib/admin/slug";
+import { deleteNodeAndStorage } from "@/lib/admin/storage-cleanup";
 import { isColor, isIcon } from "@/lib/customization";
 import type { Database } from "@/types/database";
 
@@ -68,11 +69,7 @@ export async function deleteCourse(formData: FormData) {
   const supabase = await createClient();
   const courseId = getRequiredString(formData, "course_id");
 
-  const { error } = await supabase.from("courses").delete().eq("id", courseId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await deleteNodeAndStorage(supabase, "course", courseId);
 
   revalidatePath("/admin");
   redirect("/admin");
@@ -138,11 +135,7 @@ export async function deleteSubject(formData: FormData) {
   const subjectId = getRequiredString(formData, "subject_id");
   const courseId = getRequiredString(formData, "course_id");
 
-  const { error } = await supabase.from("subjects").delete().eq("id", subjectId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await deleteNodeAndStorage(supabase, "subject", subjectId);
 
   revalidatePath(`/admin/courses/${courseId}`);
   redirect(`/admin/courses/${courseId}`);
@@ -206,11 +199,7 @@ export async function deleteChapter(formData: FormData) {
   const chapterId = getRequiredString(formData, "chapter_id");
   const subjectId = getRequiredString(formData, "subject_id");
 
-  const { error } = await supabase.from("chapters").delete().eq("id", chapterId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await deleteNodeAndStorage(supabase, "chapter", chapterId);
 
   revalidatePath(`/admin/subjects/${subjectId}`);
   redirect(`/admin/subjects/${subjectId}`);

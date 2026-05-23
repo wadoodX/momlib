@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { queryTerms, titleMatches, rowMatchesQuery } from "@/lib/search-match";
+import { queryTerms, titleMatches, rowMatchesQuery, ilikeOrFilters } from "@/lib/search-match";
 import type { Database } from "@/types/database";
 
 export type Course = Database["public"]["Tables"]["courses"]["Row"];
@@ -151,7 +151,11 @@ export type SearchRow = Resource & {
   chapter: (Chapter & { subject: (Subject & { course: Course | null }) | null }) | null;
 };
 
-const MAX_SEARCH_RESULTS = 25;
+// Resource fields searched (mirrors rowMatchesQuery's haystack) — used to build
+// the database-side ILIKE filter so matches aren't capped by a fetch window.
+export const RESOURCE_SEARCH_COLUMNS = ["title", "description", "file_name"];
+
+export const MAX_SEARCH_RESULTS = 25;
 
 /** Shared search core: filter candidate rows in JS, then shape only the few
  *  shown rows (signing URLs is relatively expensive). */
@@ -167,18 +171,29 @@ export async function searchPublishedResources(query: string): Promise<ResourceS
     return [];
   }
 
+  const terms = queryTerms(trimmedQuery);
+  if (terms.length === 0) {
+    return [];
+  }
+
   const supabase = await createClient();
 
   // Only fully-published chains are visible to students (mirrors RLS).
-  const { data, error } = await supabase
+  // The ILIKE filters run in the database so LIMIT caps actual matches rather
+  // than a pre-filter window (chained .or() groups are AND-ed across terms).
+  const builder = supabase
     .from("resources")
     .select(SEARCH_SELECT)
     .eq("is_published", true)
     .eq("chapter.is_published", true)
     .eq("chapter.subject.is_published", true)
-    .eq("chapter.subject.course.is_published", true)
-    .order("title", { ascending: true })
-    .limit(500);
+    .eq("chapter.subject.course.is_published", true);
+
+  for (const filter of ilikeOrFilters(terms, RESOURCE_SEARCH_COLUMNS)) {
+    builder.or(filter);
+  }
+
+  const { data, error } = await builder.order("title", { ascending: true }).limit(MAX_SEARCH_RESULTS);
 
   if (error) {
     throw new Error(error.message);
@@ -231,10 +246,18 @@ export async function gatherStructure(
       .eq("subject.course.is_published", true);
   }
 
+  // Match each entity on its OWN title in the database (every term must appear),
+  // so the LIMIT caps matches instead of an arbitrary first-N window.
+  for (const filter of ilikeOrFilters(terms, ["title"])) {
+    coursesQuery.or(filter);
+    subjectsQuery.or(filter);
+    chaptersQuery.or(filter);
+  }
+
   const [courses, subjects, chapters] = await Promise.all([
-    coursesQuery.order("title").limit(500),
-    subjectsQuery.order("title").limit(500),
-    chaptersQuery.order("title").limit(500),
+    coursesQuery.order("title").limit(STRUCTURE_LIMIT),
+    subjectsQuery.order("title").limit(STRUCTURE_LIMIT),
+    chaptersQuery.order("title").limit(STRUCTURE_LIMIT),
   ]);
 
   if (courses.error) throw new Error(courses.error.message);
