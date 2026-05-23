@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { queryTerms, titleMatches, rowMatchesQuery } from "@/lib/search-match";
 import type { Database } from "@/types/database";
 
 export type Course = Database["public"]["Tables"]["courses"]["Row"];
@@ -151,26 +152,6 @@ export type SearchRow = Resource & {
 };
 
 const MAX_SEARCH_RESULTS = 25;
-
-function queryTerms(query: string): string[] {
-  return query.toLowerCase().split(/\s+/).filter(Boolean);
-}
-
-/** Every term must appear somewhere in the provided text. */
-function titleMatches(title: string, terms: string[]): boolean {
-  if (terms.length === 0) return false;
-  const haystack = title.toLowerCase();
-  return terms.every((term) => haystack.includes(term));
-}
-
-/** A resource matches on its OWN fields only (title/description/file name);
- *  parent (course/subject/chapter) name matches surface as their own results. */
-export function rowMatchesQuery(row: SearchRow, query: string): boolean {
-  const terms = queryTerms(query);
-  if (terms.length === 0) return false;
-  const haystack = [row.title, row.description, row.file_name].filter(Boolean).join(" ").toLowerCase();
-  return terms.every((term) => haystack.includes(term));
-}
 
 /** Shared search core: filter candidate rows in JS, then shape only the few
  *  shown rows (signing URLs is relatively expensive). */

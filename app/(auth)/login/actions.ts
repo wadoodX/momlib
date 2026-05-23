@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -72,4 +73,28 @@ export async function signUp(formData: FormData) {
   }
 
   redirect(next);
+}
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+
+  // Neutral message regardless of whether the email exists (avoids enumeration).
+  const sent = () =>
+    redirect(`/login?message=${encodeURIComponent("If an account exists for that email, a reset link is on its way.")}`);
+
+  if (!email) {
+    redirect(`/login?mode=reset&message=${encodeURIComponent("Enter your email address.")}`);
+  }
+
+  const headerList = await headers();
+  const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
+  const proto = headerList.get("x-forwarded-proto") ?? "https";
+  const origin = host ? `${proto}://${host}` : "";
+
+  const supabase = await createClient();
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=/reset-password`,
+  });
+
+  sent();
 }
