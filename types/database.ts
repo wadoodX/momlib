@@ -8,6 +8,7 @@ export type Database = {
           id: string;
           full_name: string | null;
           role: "admin" | "student";
+          theme: "light" | "dark" | "system";
           created_at: string;
           updated_at: string;
         };
@@ -15,6 +16,7 @@ export type Database = {
           id: string;
           full_name?: string | null;
           role?: "admin" | "student";
+          theme?: "light" | "dark" | "system";
           created_at?: string;
           updated_at?: string;
         };
@@ -22,6 +24,7 @@ export type Database = {
           id?: string;
           full_name?: string | null;
           role?: "admin" | "student";
+          theme?: "light" | "dark" | "system";
           created_at?: string;
           updated_at?: string;
         };
@@ -33,6 +36,8 @@ export type Database = {
           title: string;
           slug: string;
           description: string | null;
+          color: string | null;
+          icon: string | null;
           order_index: number;
           is_published: boolean;
           created_by: string;
@@ -44,6 +49,8 @@ export type Database = {
           title: string;
           slug: string;
           description?: string | null;
+          color?: string | null;
+          icon?: string | null;
           order_index?: number;
           is_published?: boolean;
           created_by?: string;
@@ -55,6 +62,8 @@ export type Database = {
           title?: string;
           slug?: string;
           description?: string | null;
+          color?: string | null;
+          icon?: string | null;
           order_index?: number;
           is_published?: boolean;
           created_by?: string;
@@ -78,6 +87,8 @@ export type Database = {
           title: string;
           slug: string;
           description: string | null;
+          color: string | null;
+          icon: string | null;
           order_index: number;
           is_published: boolean;
           created_at: string;
@@ -89,6 +100,8 @@ export type Database = {
           title: string;
           slug: string;
           description?: string | null;
+          color?: string | null;
+          icon?: string | null;
           order_index?: number;
           is_published?: boolean;
           created_at?: string;
@@ -100,6 +113,8 @@ export type Database = {
           title?: string;
           slug?: string;
           description?: string | null;
+          color?: string | null;
+          icon?: string | null;
           order_index?: number;
           is_published?: boolean;
           created_at?: string;
@@ -228,12 +243,68 @@ export type Database = {
           },
         ];
       };
+      chapter_views: {
+        Row: {
+          user_id: string;
+          chapter_id: string;
+          viewed_at: string;
+        };
+        Insert: {
+          user_id: string;
+          chapter_id: string;
+          viewed_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          chapter_id?: string;
+          viewed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "chapter_views_chapter_id_fkey";
+            columns: ["chapter_id"];
+            isOneToOne: false;
+            referencedRelation: "chapters";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "chapter_views_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
       is_admin: {
         Args: Record<string, never>;
         Returns: boolean;
+      };
+      admin_top_viewed_chapters: {
+        Args: { limit_count?: number };
+        Returns: {
+          chapter_id: string;
+          title: string;
+          course_title: string;
+          subject_title: string;
+          course_slug: string;
+          subject_slug: string;
+          chapter_slug: string;
+          view_count: number;
+          learner_count: number;
+          last_viewed_at: string;
+        }[];
+      };
+      admin_engagement_summary: {
+        Args: Record<string, never>;
+        Returns: {
+          total_views: number;
+          learners: number;
+          views_7d: number;
+        }[];
       };
     };
     Enums: Record<string, never>;

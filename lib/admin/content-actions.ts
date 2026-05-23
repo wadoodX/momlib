@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { slugify, uniqueSlug } from "@/lib/admin/slug";
+import { isColor, isIcon } from "@/lib/customization";
 import type { Database } from "@/types/database";
 
 type ResourceType = Database["public"]["Tables"]["resources"]["Row"]["resource_type"];
@@ -18,7 +20,7 @@ export async function createCourse(formData: FormData) {
     .from("courses")
     .insert({
       title,
-      slug: getSlug(formData, title),
+      slug: await uniqueSlug(supabase, "courses", String(formData.get("slug") || title)),
       description: getOptionalString(formData, "description"),
       order_index: getNumber(formData, "order_index"),
       is_published: getCheckbox(formData, "is_published"),
@@ -46,6 +48,8 @@ export async function updateCourse(formData: FormData) {
       title,
       slug: getSlug(formData, title),
       description: getOptionalString(formData, "description"),
+      color: getColor(formData),
+      icon: getIcon(formData),
       order_index: getNumber(formData, "order_index"),
       is_published: getCheckbox(formData, "is_published"),
     })
@@ -55,6 +59,7 @@ export async function updateCourse(formData: FormData) {
     throw new Error(error.message);
   }
 
+  revalidatePath("/admin");
   revalidatePath(`/admin/courses/${courseId}`);
 }
 
@@ -84,7 +89,7 @@ export async function createSubject(formData: FormData) {
     .insert({
       course_id: courseId,
       title,
-      slug: getSlug(formData, title),
+      slug: await uniqueSlug(supabase, "subjects", String(formData.get("slug") || title), { column: "course_id", id: courseId }),
       description: getOptionalString(formData, "description"),
       order_index: getNumber(formData, "order_index"),
       is_published: getCheckbox(formData, "is_published"),
@@ -112,6 +117,8 @@ export async function updateSubject(formData: FormData) {
       title,
       slug: getSlug(formData, title),
       description: getOptionalString(formData, "description"),
+      color: getColor(formData),
+      icon: getIcon(formData),
       order_index: getNumber(formData, "order_index"),
       is_published: getCheckbox(formData, "is_published"),
     })
@@ -121,6 +128,7 @@ export async function updateSubject(formData: FormData) {
     throw new Error(error.message);
   }
 
+  revalidatePath("/admin");
   revalidatePath(`/admin/subjects/${subjectId}`);
 }
 
@@ -151,7 +159,7 @@ export async function createChapter(formData: FormData) {
     .insert({
       subject_id: subjectId,
       title,
-      slug: getSlug(formData, title),
+      slug: await uniqueSlug(supabase, "chapters", String(formData.get("slug") || title), { column: "subject_id", id: subjectId }),
       description: getOptionalString(formData, "description"),
       order_index: getNumber(formData, "order_index"),
       is_published: getCheckbox(formData, "is_published"),
@@ -188,6 +196,7 @@ export async function updateChapter(formData: FormData) {
     throw new Error(error.message);
   }
 
+  revalidatePath("/admin");
   revalidatePath(`/admin/chapters/${chapterId}`);
 }
 
@@ -232,6 +241,7 @@ export async function createLinkResource(formData: FormData) {
     throw new Error(error.message);
   }
 
+  revalidatePath("/admin");
   revalidatePath(`/admin/chapters/${chapterId}`);
 }
 
@@ -282,6 +292,7 @@ export async function createFileResource(formData: FormData) {
     throw new Error(error.message);
   }
 
+  revalidatePath("/admin");
   revalidatePath(`/admin/chapters/${chapterId}`);
 }
 
@@ -305,6 +316,7 @@ export async function updateResource(formData: FormData) {
     throw new Error(error.message);
   }
 
+  revalidatePath("/admin");
   revalidatePath(`/admin/chapters/${chapterId}`);
 }
 
@@ -325,6 +337,7 @@ export async function deleteResource(formData: FormData) {
     await supabase.storage.from("resources").remove([filePath]);
   }
 
+  revalidatePath("/admin");
   revalidatePath(`/admin/chapters/${chapterId}`);
 }
 
@@ -352,6 +365,16 @@ function getCheckbox(formData: FormData, name: string) {
   return formData.get(name) === "on";
 }
 
+function getColor(formData: FormData) {
+  const value = getOptionalString(formData, "color");
+  return isColor(value) ? value : null;
+}
+
+function getIcon(formData: FormData) {
+  const value = getOptionalString(formData, "icon");
+  return isIcon(value) ? value : null;
+}
+
 function getSlug(formData: FormData, fallback: string) {
   return slugify(String(formData.get("slug") || fallback));
 }
@@ -371,14 +394,6 @@ function getRequiredUrl(formData: FormData, name: string) {
   }
 
   return url.toString();
-}
-
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "untitled";
 }
 
 function sanitizeFileName(value: string) {

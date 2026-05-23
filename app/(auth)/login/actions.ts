@@ -29,3 +29,47 @@ export async function signIn(formData: FormData) {
 
   redirect(next);
 }
+
+export async function signUp(formData: FormData) {
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm_password") ?? "");
+  const next = getSafeNextPath(formData.get("next"));
+
+  const fail = (message: string) =>
+    redirect(`/login?mode=signup&message=${encodeURIComponent(message)}`);
+
+  if (!email || !password) {
+    fail("Email and password are required.");
+  }
+  if (password.length < 8) {
+    fail("Password must be at least 8 characters.");
+  }
+  if (password !== confirm) {
+    fail("Passwords do not match.");
+  }
+
+  const supabase = await createClient();
+  // New accounts are always students: the handle_new_user trigger inserts the
+  // profile with role 'student' (and full_name from this metadata), and RLS
+  // prevents a user from changing their own role.
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: fullName || null } },
+  });
+
+  if (error) {
+    fail(error.message);
+  }
+
+  if (!data.session) {
+    // Email confirmation is enabled: no session yet.
+    redirect(
+      `/login?message=${encodeURIComponent("Account created. Check your email to confirm, then sign in.")}`,
+    );
+  }
+
+  redirect(next);
+}
