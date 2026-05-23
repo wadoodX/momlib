@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminResources } from "@/lib/db/admin-content";
 import { uniqueSlug, nextOrderIndex } from "@/lib/admin/slug";
+import { deleteNodeAndStorage } from "@/lib/admin/storage-cleanup";
 import type { Resource } from "@/lib/db/content";
 
 export type NodeKind = "course" | "subject" | "chapter";
@@ -83,14 +84,13 @@ export async function reorder(kind: ReorderKind, orderedIds: string[]): Promise<
   revalidatePath("/admin");
 }
 
-/** Delete a node (children cascade) without redirecting away from the studio. */
+/** Delete a node (children cascade) without redirecting away from the studio.
+ *  Also purges the Storage files of every descendant resource. */
 export async function deleteNode(kind: NodeKind, id: string): Promise<void> {
   await requireAdmin();
   const supabase = await createClient();
 
-  const table = kind === "course" ? "courses" : kind === "subject" ? "subjects" : "chapters";
-  const { error } = await supabase.from(table).delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  await deleteNodeAndStorage(supabase, kind, id);
 
   revalidatePath("/admin");
 }
