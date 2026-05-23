@@ -141,6 +141,44 @@ export async function getPublishedResourcesForChapter(chapterId: string): Promis
   return Promise.all((data as Resource[]).map((resource) => addResourceHref(resource)));
 }
 
+// Embed the chapter -> subject -> course chain so search results carry their
+// trail and can be matched against parent titles. `!inner` keeps the joins.
+export const SEARCH_SELECT =
+  "*, chapter:chapters!inner(*, subject:subjects!inner(*, course:courses!inner(*)))";
+
+export type SearchRow = Resource & {
+  chapter: (Chapter & { subject: (Subject & { course: Course | null }) | null }) | null;
+};
+
+const MAX_SEARCH_RESULTS = 25;
+
+function queryTerms(query: string): string[] {
+  return query.toLowerCase().split(/\s+/).filter(Boolean);
+}
+
+/** Every term must appear somewhere in the provided text. */
+function titleMatches(title: string, terms: string[]): boolean {
+  if (terms.length === 0) return false;
+  const haystack = title.toLowerCase();
+  return terms.every((term) => haystack.includes(term));
+}
+
+/** A resource matches on its OWN fields only (title/description/file name);
+ *  parent (course/subject/chapter) name matches surface as their own results. */
+export function rowMatchesQuery(row: SearchRow, query: string): boolean {
+  const terms = queryTerms(query);
+  if (terms.length === 0) return false;
+  const haystack = [row.title, row.description, row.file_name].filter(Boolean).join(" ").toLowerCase();
+  return terms.every((term) => haystack.includes(term));
+}
+
+/** Shared search core: filter candidate rows in JS, then shape only the few
+ *  shown rows (signing URLs is relatively expensive). */
+export async function shapeSearchResults(rows: SearchRow[], query: string): Promise<ResourceSearchResult[]> {
+  const matched = rows.filter((row) => rowMatchesQuery(row, query)).slice(0, MAX_SEARCH_RESULTS);
+  return Promise.all(matched.map((row) => addResourceSearchContext(row)));
+}
+
 export async function searchPublishedResources(query: string): Promise<ResourceSearchResult[]> {
   const trimmedQuery = query.trim();
 
@@ -149,39 +187,113 @@ export async function searchPublishedResources(query: string): Promise<ResourceS
   }
 
   const supabase = await createClient();
-  const escapedQuery = trimmedQuery.replaceAll("%", "\\%").replaceAll("_", "\\_");
 
-  // Embed the published chapter -> subject -> course chain in one query.
-  // `!inner` drops resources whose ancestor chain is not fully published,
-  // mirroring the published-chain RLS policies, and replaces the previous
-  // per-resource N+1 lookups.
+  // Only fully-published chains are visible to students (mirrors RLS).
   const { data, error } = await supabase
     .from("resources")
-    .select(
-      "*, chapter:chapters!inner(*, subject:subjects!inner(*, course:courses!inner(*)))",
-    )
+    .select(SEARCH_SELECT)
     .eq("is_published", true)
     .eq("chapter.is_published", true)
     .eq("chapter.subject.is_published", true)
     .eq("chapter.subject.course.is_published", true)
-    .or(`title.ilike.%${escapedQuery}%,description.ilike.%${escapedQuery}%,file_name.ilike.%${escapedQuery}%`)
     .order("title", { ascending: true })
-    .limit(25);
+    .limit(500);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const rows = (data ?? []) as unknown as SearchRow[];
-
-  return Promise.all(rows.map((row) => addResourceSearchContext(row)));
+  return shapeSearchResults((data ?? []) as unknown as SearchRow[], trimmedQuery);
 }
 
-type SearchRow = Resource & {
-  chapter: (Chapter & { subject: (Subject & { course: Course | null }) | null }) | null;
-};
+/* ---------- structure search (courses / subjects / chapters by their own name) ---------- */
 
-async function addResourceSearchContext(row: SearchRow): Promise<ResourceSearchResult> {
+type Ref = { id: string; title: string; slug: string };
+export type CourseHit = Ref & { is_published: boolean };
+export type SubjectHit = Ref & { is_published: boolean; course: Ref };
+export type ChapterHit = Ref & { is_published: boolean; course: Ref; subject: Ref };
+export type StructureResults = { courses: CourseHit[]; subjects: SubjectHit[]; chapters: ChapterHit[] };
+
+const STRUCTURE_LIMIT = 25;
+
+/**
+ * Search courses/subjects/chapters by their OWN title. `includeUnpublished`
+ * is for admins; students get only fully-published chains (mirrors RLS).
+ * Takes a Supabase client so both the student and admin entry points reuse it.
+ */
+export async function gatherStructure(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  query: string,
+  includeUnpublished: boolean,
+): Promise<StructureResults> {
+  const terms = queryTerms(query);
+  if (terms.length === 0) {
+    return { courses: [], subjects: [], chapters: [] };
+  }
+
+  const coursesQuery = supabase.from("courses").select("id, title, slug, is_published");
+  const subjectsQuery = supabase
+    .from("subjects")
+    .select("id, title, slug, is_published, course:courses!inner(id, title, slug, is_published)");
+  const chaptersQuery = supabase
+    .from("chapters")
+    .select(
+      "id, title, slug, is_published, subject:subjects!inner(id, title, slug, is_published, course:courses!inner(id, title, slug, is_published))",
+    );
+
+  if (!includeUnpublished) {
+    coursesQuery.eq("is_published", true);
+    subjectsQuery.eq("is_published", true).eq("course.is_published", true);
+    chaptersQuery
+      .eq("is_published", true)
+      .eq("subject.is_published", true)
+      .eq("subject.course.is_published", true);
+  }
+
+  const [courses, subjects, chapters] = await Promise.all([
+    coursesQuery.order("title").limit(500),
+    subjectsQuery.order("title").limit(500),
+    chaptersQuery.order("title").limit(500),
+  ]);
+
+  if (courses.error) throw new Error(courses.error.message);
+  if (subjects.error) throw new Error(subjects.error.message);
+  if (chapters.error) throw new Error(chapters.error.message);
+
+  type SubjRow = CourseHit & { course: Ref };
+  type ChapRow = CourseHit & { subject: Ref & { course: Ref } };
+
+  return {
+    courses: ((courses.data ?? []) as CourseHit[])
+      .filter((c) => titleMatches(c.title, terms))
+      .slice(0, STRUCTURE_LIMIT),
+    subjects: ((subjects.data ?? []) as unknown as SubjRow[])
+      .filter((s) => titleMatches(s.title, terms))
+      .slice(0, STRUCTURE_LIMIT)
+      .map((s) => ({ id: s.id, title: s.title, slug: s.slug, is_published: s.is_published, course: s.course })),
+    chapters: ((chapters.data ?? []) as unknown as ChapRow[])
+      .filter((c) => titleMatches(c.title, terms))
+      .slice(0, STRUCTURE_LIMIT)
+      .map((c) => ({
+        id: c.id,
+        title: c.title,
+        slug: c.slug,
+        is_published: c.is_published,
+        subject: { id: c.subject.id, title: c.subject.title, slug: c.subject.slug },
+        course: c.subject.course,
+      })),
+  };
+}
+
+export async function searchPublishedStructure(query: string): Promise<StructureResults> {
+  if (query.trim().length < 2) {
+    return { courses: [], subjects: [], chapters: [] };
+  }
+  const supabase = await createClient();
+  return gatherStructure(supabase, query.trim(), false);
+}
+
+export async function addResourceSearchContext(row: SearchRow): Promise<ResourceSearchResult> {
   const { chapter: chapterWithSubject, ...resource } = row;
   const subjectWithCourse = chapterWithSubject?.subject ?? null;
   const course = subjectWithCourse?.course ?? null;
@@ -217,4 +329,110 @@ async function addResourceHref(resource: Resource): Promise<ResourceLink> {
   }
 
   return { ...resource, href: data.signedUrl };
+}
+
+export type StudentStats = {
+  courses: number;
+  chapters: number;
+  resources: number;
+  viewedChapters: number;
+};
+
+export async function getStudentStats(): Promise<StudentStats> {
+  const supabase = await createClient();
+
+  // Counts run under RLS, so they only include the published chain a student can access.
+  // `viewedChapters` counts the student's own chapter_views whose published chain is
+  // still visible (same `!inner` embed used by getRecentlyViewedChapters).
+  const [courses, chapters, resources, viewedChapters] = await Promise.all([
+    supabase.from("courses").select("*", { count: "exact", head: true }).eq("is_published", true),
+    supabase.from("chapters").select("*", { count: "exact", head: true }).eq("is_published", true),
+    supabase.from("resources").select("*", { count: "exact", head: true }).eq("is_published", true),
+    supabase
+      .from("chapter_views")
+      .select(
+        "chapter_id, chapter:chapters!inner(is_published, subject:subjects!inner(is_published, course:courses!inner(is_published)))",
+        { count: "exact", head: true },
+      )
+      .eq("chapter.is_published", true)
+      .eq("chapter.subject.is_published", true)
+      .eq("chapter.subject.course.is_published", true),
+  ]);
+
+  return {
+    courses: courses.count ?? 0,
+    chapters: chapters.count ?? 0,
+    resources: resources.count ?? 0,
+    viewedChapters: viewedChapters.count ?? 0,
+  };
+}
+
+export async function recordChapterView(chapterId: string): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return;
+  }
+
+  // RLS limits writes to the signed-in user's own rows.
+  await supabase
+    .from("chapter_views")
+    .upsert({ user_id: user.id, chapter_id: chapterId, viewed_at: new Date().toISOString() }, { onConflict: "user_id,chapter_id" });
+}
+
+export type RecentChapter = {
+  chapterId: string;
+  title: string;
+  trail: string;
+  href: string;
+  viewedAt: string;
+  icon: string | null;
+  color: string | null;
+};
+
+export async function getRecentlyViewedChapters(limit = 6): Promise<RecentChapter[]> {
+  const supabase = await createClient();
+
+  // chapter_views is RLS-scoped to the current user; `!inner` drops chapters whose
+  // published chain is no longer visible (reuses the search embed pattern above).
+  const { data, error } = await supabase
+    .from("chapter_views")
+    .select("viewed_at, chapter:chapters!inner(*, subject:subjects!inner(*, course:courses!inner(*)))")
+    .order("viewed_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  type ViewRow = {
+    viewed_at: string;
+    chapter: Chapter & { subject: (Subject & { course: Course | null }) | null };
+  };
+
+  return ((data ?? []) as unknown as ViewRow[])
+    .map((row) => {
+      const chapter = row.chapter;
+      const subject = chapter?.subject ?? null;
+      const course = subject?.course ?? null;
+
+      if (!chapter || !subject || !course) {
+        return null;
+      }
+
+      return {
+        chapterId: chapter.id,
+        title: chapter.title,
+        trail: `${course.title} / ${subject.title}`,
+        href: `/courses/${course.slug}/${subject.slug}/${chapter.slug}`,
+        viewedAt: row.viewed_at,
+        // Inherit the visual identity from the subject, falling back to the course.
+        icon: subject.icon ?? course.icon,
+        color: subject.color ?? course.color,
+      };
+    })
+    .filter((item): item is RecentChapter => item !== null);
 }

@@ -3,7 +3,7 @@ type SignOutButtonProps = {
 };
 
 const defaultClassName =
-  "rounded-full border border-stone-700 px-4 py-2 text-sm text-stone-200 hover:border-stone-500";
+  "rounded-full border border-line px-4 py-2 text-sm text-muted hover:border-ink hover:text-ink";
 
 export function SignOutButton({ className = defaultClassName }: SignOutButtonProps) {
   return (

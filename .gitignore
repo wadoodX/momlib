@@ -24,5 +24,8 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 
-# opencode (local tooling/config)
+# local agent tooling/config
 .opencode/
+.agents/
+.claude/
+skills-lock.json

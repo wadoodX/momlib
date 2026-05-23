@@ -3,13 +3,15 @@ import { requireUser } from "@/lib/auth/guards";
 import { getPublishedCourses } from "@/lib/db/content";
 import { EmptyState } from "@/components/student/empty-state";
 import { PageShell } from "@/components/student/page-shell";
+import { NodeIcon } from "@/components/customization/node-icon";
+import { colorHex } from "@/lib/customization";
 
 export default async function CoursesPage() {
-  await requireUser();
+  const { profile } = await requireUser();
   const courses = await getPublishedCourses();
 
   return (
-    <PageShell eyebrow="Courses" title="Browse courses" description="Choose a course to view its published subjects and chapters.">
+    <PageShell eyebrow="Courses" title="Browse courses" description="Choose a course to view its published subjects and chapters." role={profile?.role ?? "student"}>
       {courses.length === 0 ? (
         <EmptyState title="No published courses yet" description="Published courses will appear here once your teacher adds them." />
       ) : (
@@ -18,10 +20,16 @@ export default async function CoursesPage() {
             <Link
               key={course.id}
               href={`/courses/${course.slug}`}
-              className="rounded-3xl border border-stone-800 bg-stone-900/70 p-6 transition hover:border-emerald-300/70"
+              className="rounded-3xl border border-line bg-card p-6 transition hover:border-sage"
+              style={{ borderLeft: `4px solid ${colorHex(course.color)}` }}
             >
-              <h2 className="text-xl font-semibold text-stone-50">{course.title}</h2>
-              {course.description ? <p className="mt-3 text-sm leading-6 text-stone-300">{course.description}</p> : null}
+              <div className="flex items-start gap-4">
+                <NodeIcon icon={course.icon} color={course.color} kind="course" size="md" />
+                <div className="min-w-0">
+                  <h2 className="text-xl font-semibold text-ink">{course.title}</h2>
+                  {course.description ? <p className="mt-2 text-sm leading-6 text-muted">{course.description}</p> : null}
+                </div>
+              </div>
             </Link>
           ))}
         </div>

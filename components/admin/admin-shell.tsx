@@ -1,33 +1,30 @@
-import Link from "next/link";
-import { SignOutButton } from "@/components/auth/sign-out-button";
+import { NavBar } from "@/components/layout/nav-bar";
+import { Breadcrumbs, type BreadcrumbItem } from "@/components/layout/breadcrumbs";
+import { ThemeSync } from "@/components/theme-sync";
+import { requireUser } from "@/lib/auth/guards";
 
 type AdminShellProps = {
   eyebrow: string;
   title: string;
   description?: string;
+  breadcrumbs?: BreadcrumbItem[];
   children: React.ReactNode;
 };
 
-export function AdminShell({ eyebrow, title, description, children }: AdminShellProps) {
-  return (
-    <main className="min-h-screen bg-stone-950 px-6 py-10 text-stone-50">
-      <section className="mx-auto max-w-6xl">
-        <nav className="mb-10 flex flex-wrap items-center justify-between gap-4 text-sm">
-          <div className="flex flex-wrap gap-3 text-stone-300">
-            <Link href="/admin" className="hover:text-emerald-300">
-              Admin
-            </Link>
-            <span className="text-stone-700">/</span>
-            <Link href="/dashboard" className="hover:text-emerald-300">
-              Student view
-            </Link>
-          </div>
-          <SignOutButton className="rounded-full border border-stone-700 px-4 py-2 text-stone-200 hover:border-stone-500" />
-        </nav>
+export async function AdminShell({ eyebrow, title, description, breadcrumbs, children }: AdminShellProps) {
+  const { user, profile } = await requireUser();
 
-        <p className="text-sm font-medium uppercase tracking-[0.25em] text-emerald-300">{eyebrow}</p>
+  return (
+    <main className="min-h-screen bg-paper px-6 py-10 text-ink">
+      {profile ? <ThemeSync initialTheme={profile.theme} /> : null}
+      <section className="mx-auto max-w-6xl">
+        <NavBar role="admin" displayName={profile?.full_name ?? null} email={user.email ?? ""} />
+
+        {breadcrumbs ? <Breadcrumbs items={breadcrumbs} /> : null}
+
+        <p className="text-sm font-medium uppercase tracking-[0.25em] text-gold">{eyebrow}</p>
         <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight sm:text-5xl">{title}</h1>
-        {description ? <p className="mt-5 max-w-3xl text-base leading-7 text-stone-300">{description}</p> : null}
+        {description ? <p className="mt-5 max-w-3xl text-base leading-7 text-muted">{description}</p> : null}
 
         <div className="mt-10">{children}</div>
       </section>

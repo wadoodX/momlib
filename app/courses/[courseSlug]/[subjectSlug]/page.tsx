@@ -10,7 +10,7 @@ type SubjectPageProps = {
 };
 
 export default async function SubjectPage({ params }: SubjectPageProps) {
-  await requireUser();
+  const { profile } = await requireUser();
   const { courseSlug, subjectSlug } = await params;
   const course = await getPublishedCourseBySlug(courseSlug);
 
@@ -27,7 +27,20 @@ export default async function SubjectPage({ params }: SubjectPageProps) {
   const chapters = await getPublishedChaptersForSubject(subject.id);
 
   return (
-    <PageShell eyebrow={course.title} title={subject.title} description={subject.description}>
+    <PageShell
+      eyebrow={course.title}
+      title={subject.title}
+      description={subject.description}
+      role={profile?.role ?? "student"}
+      icon={subject.icon}
+      color={subject.color}
+      iconKind="subject"
+      breadcrumbs={[
+        { label: "Courses", href: "/courses" },
+        { label: course.title, href: `/courses/${course.slug}` },
+        { label: subject.title },
+      ]}
+    >
       {chapters.length === 0 ? (
         <EmptyState title="No published chapters yet" description="Published chapters for this subject will appear here." />
       ) : (
@@ -36,10 +49,10 @@ export default async function SubjectPage({ params }: SubjectPageProps) {
             <Link
               key={chapter.id}
               href={`/courses/${course.slug}/${subject.slug}/${chapter.slug}`}
-              className="rounded-3xl border border-stone-800 bg-stone-900/70 p-6 transition hover:border-emerald-300/70"
+              className="rounded-3xl border border-line bg-card p-6 transition hover:border-sage"
             >
-              <h2 className="text-xl font-semibold text-stone-50">{chapter.title}</h2>
-              {chapter.description ? <p className="mt-3 text-sm leading-6 text-stone-300">{chapter.description}</p> : null}
+              <h2 className="text-xl font-semibold text-ink">{chapter.title}</h2>
+              {chapter.description ? <p className="mt-3 text-sm leading-6 text-muted">{chapter.description}</p> : null}
             </Link>
           ))}
         </div>
