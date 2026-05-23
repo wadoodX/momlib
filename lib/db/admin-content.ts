@@ -3,6 +3,8 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import {
   SEARCH_SELECT,
+  RESOURCE_SEARCH_COLUMNS,
+  MAX_SEARCH_RESULTS,
   shapeSearchResults,
   gatherStructure,
   type Chapter,
@@ -13,6 +15,7 @@ import {
   type StructureResults,
   type Subject,
 } from "@/lib/db/content";
+import { queryTerms, ilikeOrFilters } from "@/lib/search-match";
 
 export type ChapterNode = Chapter;
 export type SubjectNode = Subject & { chapters: ChapterNode[] };
@@ -353,12 +356,22 @@ export async function searchAllResources(query: string): Promise<ResourceSearchR
     return [];
   }
 
+  const terms = queryTerms(trimmed);
+  if (terms.length === 0) {
+    return [];
+  }
+
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("resources")
-    .select(SEARCH_SELECT)
-    .order("title", { ascending: true })
-    .limit(500);
+  // ILIKE filters run in the database (chained .or() groups AND across terms),
+  // so LIMIT caps actual matches rather than a first-N fetch window. Admins see
+  // drafts too, so there are no publish filters here.
+  const builder = supabase.from("resources").select(SEARCH_SELECT);
+
+  for (const filter of ilikeOrFilters(terms, RESOURCE_SEARCH_COLUMNS)) {
+    builder.or(filter);
+  }
+
+  const { data, error } = await builder.order("title", { ascending: true }).limit(MAX_SEARCH_RESULTS);
 
   if (error) {
     throw new Error(error.message);
