@@ -23,3 +23,6 @@ pnpm-debug.log*
 
 # typescript
 *.tsbuildinfo
+
+# opencode (local tooling/config)
+.opencode/
