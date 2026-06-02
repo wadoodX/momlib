@@ -3,7 +3,9 @@ import { Pricing2 } from "@/components/ui/pricing2";
 import { Footer } from "@/components/landing/footer";
 
 export const metadata = {
-  title: "Plans — Nibras",
+  title: "Plans & pricing",
+  description:
+    "Nibras is free for every student. Go Pro for offline downloads, early access to new material, and priority support.",
 };
 
 export default function PricingPage() {

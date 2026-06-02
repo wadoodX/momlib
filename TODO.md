@@ -35,5 +35,17 @@ real enrollment. Before real signups:
 
 ## 4. Merge the build to `main`
 
-- [ ] Open/merge the PR: https://github.com/wadoodX/momlib/compare/main...claude/portal-build
-  (`main` currently has none of the portal build — it all lives on `claude/portal-build`.)
+- [x] Open/merge the PR (`main ← claude/portal-build`) — **done** (PR #7 merged).
+
+## 5. Landing page & SEO follow-ups
+
+- [ ] **Set `NEXT_PUBLIC_SITE_URL`** to your real domain in the hosting env (and `.env.local`).
+  It defaults to the placeholder `https://nibras.app` and is used by the page metadata,
+  `sitemap.xml`, `robots.txt`, and the Open Graph share image — so search engines and link
+  previews point at the right domain.
+
+- [ ] **Replace placeholder testimonials & stats** in `components/landing/testimonials.tsx` with
+  real quotes, names, institutions, and numbers before the site is public.
+- [ ] **Wire real Stripe (or similar) checkout** so the "Go Pro" CTA becomes an actual purchase.
+  Today it routes to `/login?mode=signup` (create account; upsell later) — no billing exists yet.
+  Update the homepage + `components/ui/pricing2.tsx` CTAs once checkout is live.

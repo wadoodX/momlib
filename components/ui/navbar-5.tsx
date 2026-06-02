@@ -48,9 +48,15 @@ export const Navbar5 = () => {
             )}
           </div>
 
-          <div className="hidden lg:flex">
+          <div className="hidden items-center gap-3 lg:flex">
+            <Link
+              href="/login"
+              className="text-sm font-medium text-ink transition-opacity hover:opacity-60"
+            >
+              Sign in
+            </Link>
             <Button asChild>
-              <Link href="/login">Sign in</Link>
+              <Link href="/pricing">Go Pro</Link>
             </Button>
           </div>
 
@@ -80,8 +86,11 @@ export const Navbar5 = () => {
                     </Link>
                   ),
                 )}
+                <Link href="/login" className="font-medium text-ink">
+                  Sign in
+                </Link>
                 <Button asChild>
-                  <Link href="/login">Sign in</Link>
+                  <Link href="/pricing">Go Pro</Link>
                 </Button>
               </div>
             </SheetContent>
