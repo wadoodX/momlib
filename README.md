@@ -39,6 +39,30 @@ search, and resume where they left off.
 | `npm run test` / `npm run test:watch` | Vitest |
 | `npm run gen:types` | Regenerate `types/database.ts` from the live schema (needs the Supabase CLI + `SUPABASE_PROJECT_ID`) |
 
+## File storage (Cloudflare R2 — optional)
+
+Resource files (PDF/PPT/doc/image/video) are stored through a small abstraction in
+`lib/storage/` that uses **Cloudflare R2** when configured and **falls back to Supabase
+Storage** otherwise — so the app works with zero R2 setup. R2 gives 10 GB free and **no egress
+fees**, which is why it's the recommended home for file-heavy content.
+
+To use R2, add these to `.env.local` (server-only — never exposed to the client):
+
+```
+R2_ACCOUNT_ID=<cloudflare-account-id>
+R2_ACCESS_KEY_ID=<r2-access-key-id>
+R2_SECRET_ACCESS_KEY=<r2-secret-access-key>
+R2_BUCKET=<bucket-name>
+```
+
+Setup: Cloudflare dashboard → **R2** → create a bucket → **Manage API Tokens** → create an
+Object **Read & Write** token, then copy the Account ID, Access Key ID, Secret, and bucket name
+above. Restart the dev server. With all four set, every upload/preview/delete/duplicate goes to
+R2; with any missing, it transparently uses Supabase Storage. The bucket stays **private** —
+files are served via short-lived (1 h) presigned URLs, same as before.
+
+> Switch **before** uploading real files: with no files stored yet there's nothing to migrate.
+
 ## Database migrations
 
 SQL lives in `supabase/migrations/`. Apply **all** of them, in filename order, via

@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { slugify, uniqueSlug } from "@/lib/admin/slug";
 import { deleteNodeAndStorage } from "@/lib/admin/storage-cleanup";
+import { uploadResource, removeResources } from "@/lib/storage/resources";
 import { isColor, isIcon } from "@/lib/customization";
 import type { Database } from "@/types/database";
 
@@ -253,14 +254,7 @@ export async function createFileResource(formData: FormData) {
   const filePath = await buildResourcePath(chapterId, resourceId, fileName);
   const resourceType = inferResourceType(file);
 
-  const upload = await supabase.storage.from("resources").upload(filePath, file, {
-    contentType: file.type || undefined,
-    upsert: false,
-  });
-
-  if (upload.error) {
-    throw new Error(upload.error.message);
-  }
+  await uploadResource(supabase, filePath, file);
 
   const { error } = await supabase.from("resources").insert({
     id: resourceId,
@@ -277,7 +271,7 @@ export async function createFileResource(formData: FormData) {
   });
 
   if (error) {
-    await supabase.storage.from("resources").remove([filePath]);
+    await removeResources(supabase, [filePath]);
     throw new Error(error.message);
   }
 
@@ -323,7 +317,7 @@ export async function deleteResource(formData: FormData) {
   }
 
   if (filePath) {
-    await supabase.storage.from("resources").remove([filePath]);
+    await removeResources(supabase, [filePath]);
   }
 
   revalidatePath("/admin");

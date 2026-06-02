@@ -1,4 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
+import { removeResources } from "@/lib/storage/resources";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -10,10 +11,6 @@ type ChapterLite = { resources: ResourceLite[] | null };
 type SubjectLite = { chapters: ChapterLite[] | null };
 type CourseLite = { subjects: SubjectLite[] | null };
 type NodeLite = CourseLite | SubjectLite | ChapterLite;
-
-const STORAGE_BUCKET = "resources";
-// supabase-js storage.remove() takes an array; chunk to stay well within limits.
-const REMOVE_BATCH = 100;
 
 const TABLE: Record<NodeKind, "courses" | "subjects" | "chapters"> = {
   course: "courses",
@@ -74,7 +71,5 @@ export async function deleteNodeAndStorage(supabase: Client, kind: NodeKind, id:
   const { error: deleteError } = await supabase.from(table).delete().eq("id", id);
   if (deleteError) throw new Error(deleteError.message);
 
-  for (let i = 0; i < paths.length; i += REMOVE_BATCH) {
-    await supabase.storage.from(STORAGE_BUCKET).remove(paths.slice(i, i + REMOVE_BATCH));
-  }
+  await removeResources(supabase, paths);
 }

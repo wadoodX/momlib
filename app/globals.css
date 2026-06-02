@@ -167,3 +167,26 @@ body {
     background-position: 200% 0;
   }
 }
+
+/* Staggered entrance for card grids (courses / subjects). `both` keeps the card
+   hidden through its animation-delay, then fades it up. Same easing as Reveal. */
+@keyframes card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-rise {
+  animation: card-rise 0.5s cubic-bezier(0.21, 0.47, 0.32, 0.98) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-rise {
+    animation: none;
+  }
+}

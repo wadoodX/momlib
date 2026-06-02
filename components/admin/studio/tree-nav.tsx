@@ -252,14 +252,15 @@ function Row({
                   setEditing(false);
                 }
               }}
-              className="my-1 w-full rounded-lg border border-sage bg-paper-soft px-2 py-1 text-sm text-ink outline-none"
+              className="my-1 w-full rounded-lg border border-sage bg-paper-soft px-2 py-1 text-[15px] text-ink outline-none"
             />
           ) : (
             <button
               type="button"
               onClick={() => ctx.onSelect(kind, node.id)}
+              title={node.title}
               className={cn(
-                "flex flex-1 items-center gap-2 truncate py-2 text-left text-sm",
+                "flex flex-1 items-center gap-2 truncate py-2 text-left text-[15px] leading-snug",
                 active ? "font-semibold text-ink" : "text-ink/90",
               )}
             >

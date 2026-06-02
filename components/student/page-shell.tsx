@@ -30,9 +30,9 @@ export async function PageShell({
   const { user, profile } = await requireUser();
 
   return (
-    <main className="min-h-screen bg-paper px-6 py-10 text-ink">
+    <main className="min-h-screen bg-paper px-6 py-10 text-ink lg:px-10 xl:px-12 2xl:px-16">
       {profile ? <ThemeSync initialTheme={profile.theme} /> : null}
-      <section className="mx-auto max-w-5xl">
+      <section className="w-full">
         <NavBar role={profile?.role ?? role} displayName={profile?.full_name ?? null} email={user.email ?? ""} />
 
         {breadcrumbs ? <Breadcrumbs items={breadcrumbs} /> : null}

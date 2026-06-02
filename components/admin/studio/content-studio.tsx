@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Layers } from "lucide-react";
 import {
@@ -16,12 +16,53 @@ import type { CourseNode, SubjectNode, ChapterNode } from "@/lib/db/admin-conten
 import { TreeNav, type Selection } from "./tree-nav";
 import { DetailPane } from "./detail-pane";
 
+// Drag-to-resize bounds for the tree panel (px). Width persists in localStorage.
+const MIN_NAV = 260;
+const MAX_NAV = 640;
+const DEFAULT_NAV = 360;
+const NAV_KEY = "studio:nav-width";
+
 export function ContentStudio({ tree: initialTree }: { tree: CourseNode[] }) {
   const router = useRouter();
   const params = useSearchParams();
   const [tree, setTree] = useState(initialTree);
   const [syncedTree, setSyncedTree] = useState(initialTree);
   const [, startTransition] = useTransition();
+
+  // Adjustable width of the tree panel. Start at the default for SSR, then adopt
+  // any saved width on mount (avoids a hydration mismatch).
+  const containerRef = useRef<HTMLDivElement>(null);
+  const resizingRef = useRef(false);
+  const [navWidth, setNavWidth] = useState(DEFAULT_NAV);
+
+  useEffect(() => {
+    // One-time hydration of the saved width on mount — can't run during SSR
+    // without a mismatch, so it's a deliberate post-mount setState.
+    const saved = Number(localStorage.getItem(NAV_KEY));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (Number.isFinite(saved) && saved >= MIN_NAV && saved <= MAX_NAV) setNavWidth(saved);
+  }, []);
+
+  function startResize(e: React.PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    resizingRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function onResize(e: React.PointerEvent<HTMLDivElement>) {
+    if (!resizingRef.current || !containerRef.current) return;
+    const left = containerRef.current.getBoundingClientRect().left;
+    setNavWidth(Math.min(MAX_NAV, Math.max(MIN_NAV, Math.round(e.clientX - left))));
+  }
+  function endResize(e: React.PointerEvent<HTMLDivElement>) {
+    if (!resizingRef.current) return;
+    resizingRef.current = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    try {
+      localStorage.setItem(NAV_KEY, String(navWidth));
+    } catch {
+      /* ignore storage failures (private mode, etc.) */
+    }
+  }
 
   // Re-sync the local (optimistic) tree whenever the server sends a fresh one,
   // adjusting state during render rather than in an effect.
@@ -109,21 +150,40 @@ export function ContentStudio({ tree: initialTree }: { tree: CourseNode[] }) {
   const selected = findNode(tree, selection);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-      <aside className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto rounded-3xl border border-line bg-card p-3">
-        <TreeNav
-          tree={tree}
-          selected={selection}
-          onSelect={select}
-          onReorderCourses={onReorderCourses}
-          onReorderSubjects={onReorderSubjects}
-          onReorderChapters={onReorderChapters}
-          onQuickAdd={onQuickAdd}
-          onRename={onRename}
-          onTogglePublish={onTogglePublish}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
-        />
+    <div
+      ref={containerRef}
+      style={{ "--nav-w": `${navWidth}px` } as React.CSSProperties}
+      className="grid gap-6 lg:grid-cols-[var(--nav-w)_1fr]"
+    >
+      <aside className="relative lg:sticky lg:top-6">
+        <div className="lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto rounded-3xl border border-line bg-card p-3">
+          <TreeNav
+            tree={tree}
+            selected={selection}
+            onSelect={select}
+            onReorderCourses={onReorderCourses}
+            onReorderSubjects={onReorderSubjects}
+            onReorderChapters={onReorderChapters}
+            onQuickAdd={onQuickAdd}
+            onRename={onRename}
+            onTogglePublish={onTogglePublish}
+            onDuplicate={onDuplicate}
+            onDelete={onDelete}
+          />
+        </div>
+
+        {/* Drag to resize the list (lg+). Sits in the column gap. */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize list"
+          onPointerDown={startResize}
+          onPointerMove={onResize}
+          onPointerUp={endResize}
+          className="group absolute -right-3 top-0 hidden h-full w-6 cursor-col-resize touch-none lg:flex lg:items-center lg:justify-center"
+        >
+          <span className="h-10 w-1 rounded-full bg-line transition group-hover:bg-sage" />
+        </div>
       </aside>
 
       <div className="min-w-0">

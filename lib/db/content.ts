@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { signedResourceUrl } from "@/lib/storage/resources";
 import { queryTerms, titleMatches, rowMatchesQuery, ilikeOrFilters } from "@/lib/search-match";
 import type { Database } from "@/types/database";
 
@@ -33,6 +34,43 @@ export async function getPublishedCourses(): Promise<Course[]> {
   }
 
   return data as Course[];
+}
+
+export type CourseWithCount = Course & { subjectCount: number };
+
+/** Published courses, each annotated with its count of published subjects.
+ *  Counts are tallied in JS from a single `course_id` fetch (both queries are
+ *  RLS-scoped to published rows), avoiding the embedded-count-with-filter
+ *  pitfalls of `subjects(count)`. */
+export async function getPublishedCoursesWithCounts(): Promise<CourseWithCount[]> {
+  const supabase = await createClient();
+
+  const [coursesRes, subjectsRes] = await Promise.all([
+    supabase
+      .from("courses")
+      .select("*")
+      .eq("is_published", true)
+      .order("order_index", { ascending: true })
+      .order("title", { ascending: true }),
+    supabase.from("subjects").select("course_id").eq("is_published", true),
+  ]);
+
+  if (coursesRes.error) {
+    throw new Error(coursesRes.error.message);
+  }
+  if (subjectsRes.error) {
+    throw new Error(subjectsRes.error.message);
+  }
+
+  const counts = new Map<string, number>();
+  for (const row of (subjectsRes.data ?? []) as { course_id: string }[]) {
+    counts.set(row.course_id, (counts.get(row.course_id) ?? 0) + 1);
+  }
+
+  return (coursesRes.data as Course[]).map((course) => ({
+    ...course,
+    subjectCount: counts.get(course.id) ?? 0,
+  }));
 }
 
 export async function getPublishedCourseBySlug(courseSlug: string): Promise<Course | null> {
@@ -326,13 +364,9 @@ async function addResourceHref(resource: Resource): Promise<ResourceLink> {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.storage.from("resources").createSignedUrl(resource.file_path, 60 * 60);
+  const href = await signedResourceUrl(supabase, resource.file_path, 60 * 60);
 
-  if (error) {
-    return { ...resource, href: null };
-  }
-
-  return { ...resource, href: data.signedUrl };
+  return { ...resource, href };
 }
 
 export type StudentStats = {
