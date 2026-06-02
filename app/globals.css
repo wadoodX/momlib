@@ -63,6 +63,10 @@
 
 :root {
   color-scheme: light;
+  /* Hero scrim: a paper-colored wash behind the headline so it stays readable
+     over the lantern glow. Theme-aware (dark values set in .dark). */
+  --hero-scrim-1: rgba(240, 235, 222, 0.88);
+  --hero-scrim-2: rgba(240, 235, 222, 0.58);
 }
 
 /* Dark "parchment at night" palette. Because every utility reads
@@ -70,6 +74,9 @@
    next-themes adds the .dark class to <html>. */
 .dark {
   color-scheme: dark;
+
+  --hero-scrim-1: rgba(25, 29, 25, 0.86);
+  --hero-scrim-2: rgba(25, 29, 25, 0.55);
 
   --color-paper: #191d19;
   --color-paper-soft: #232924;
@@ -125,6 +132,16 @@ body {
 /* Utility: display serif */
 .font-display {
   font-family: var(--font-display), Georgia, serif;
+}
+
+/* Theme-aware hero scrim (paper wash behind the headline over the lantern glow) */
+.hero-scrim {
+  background: radial-gradient(
+    76% 62% at 50% 46%,
+    var(--hero-scrim-1) 0%,
+    var(--hero-scrim-2) 48%,
+    transparent 76%
+  );
 }
 
 /* Slow drifting aurora used as the static/reduced-motion hero backdrop */

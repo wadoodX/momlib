@@ -59,7 +59,7 @@ const Pricing2 = ({
       ],
       button: {
         text: "Get started",
-        url: "#",
+        url: "/login?mode=signup",
       },
     },
     {
@@ -76,14 +76,14 @@ const Pricing2 = ({
       ],
       button: {
         text: "Choose Pro",
-        url: "#",
+        url: "/login?mode=signup",
       },
     },
   ],
 }: Pricing2Props) => {
   const [isYearly, setIsYearly] = useState(false);
   return (
-    <section className="bg-paper py-24 text-ink">
+    <section className="py-24 text-ink">
       <div className="mx-auto max-w-5xl px-6">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 text-center">
           <h2 className="font-display text-pretty text-4xl font-semibold tracking-[-0.02em] lg:text-6xl">
