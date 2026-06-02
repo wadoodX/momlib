@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminResources } from "@/lib/db/admin-content";
 import { uniqueSlug, nextOrderIndex } from "@/lib/admin/slug";
 import { deleteNodeAndStorage } from "@/lib/admin/storage-cleanup";
+import { copyResource, removeResources } from "@/lib/storage/resources";
 import type { Resource } from "@/lib/db/content";
 
 export type NodeKind = "course" | "subject" | "chapter";
@@ -164,8 +165,7 @@ async function cloneResources(
       const newPath = `courses/${courseId}/subjects/${subjectId}/chapters/${dstChapterId}/${newId}-${fileName}`;
       // Server-side copy: no re-upload, and the copy gets its own file so
       // deleting it later never removes the original's object.
-      const { error } = await supabase.storage.from("resources").copy(r.file_path, newPath);
-      if (error) throw new Error(error.message);
+      await copyResource(supabase, r.file_path, newPath);
       copied.push(newPath); // track for cleanup if the duplicate later fails
       filePath = newPath;
     }
@@ -235,7 +235,7 @@ async function rollbackDuplicate(
   copied: string[],
 ) {
   if (copied.length > 0) {
-    await supabase.storage.from("resources").remove(copied);
+    await removeResources(supabase, copied);
   }
   await supabase.from(table).delete().eq("id", id);
 }

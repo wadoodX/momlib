@@ -44,7 +44,7 @@ export default async function SubjectPage({ params }: SubjectPageProps) {
       {chapters.length === 0 ? (
         <EmptyState title="No published chapters yet" description="Published chapters for this subject will appear here." />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-5 grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))]">
           {chapters.map((chapter) => (
             <Link
               key={chapter.id}

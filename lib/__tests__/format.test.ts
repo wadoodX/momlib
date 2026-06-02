@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { timeAgo } from "@/lib/format";
+import { timeAgo, parseNodeDescription } from "@/lib/format";
 
 const NOW = new Date("2026-05-24T12:00:00Z");
 
@@ -33,5 +33,60 @@ describe("timeAgo", () => {
     expect(timeAgo(ago(14 * DAY))).toBe("2w ago");
     expect(timeAgo(ago(60 * DAY))).toBe("2mo ago");
     expect(timeAgo(ago(400 * DAY))).toBe("1y ago");
+  });
+});
+
+describe("parseNodeDescription", () => {
+  it("returns all-null for null/empty", () => {
+    expect(parseNodeDescription(null)).toEqual({ status: null, coreText: null, detail: null });
+    expect(parseNodeDescription("")).toEqual({ status: null, coreText: null, detail: null });
+  });
+
+  it("reads the Core/Optional module prefix", () => {
+    expect(parseNodeDescription("Core Module")).toEqual({ status: "Core", coreText: null, detail: null });
+    expect(parseNodeDescription("Optional Module · Short Term Course")).toEqual({
+      status: "Optional",
+      coreText: null,
+      detail: "Short Term Course",
+    });
+  });
+
+  it("extracts the core text after 'Core text(s):'", () => {
+    expect(parseNodeDescription("Core Module · Core text: Al-Fiqh ul Muyassar by Maulana Shafiqur Rahman Nadvi")).toEqual({
+      status: "Core",
+      coreText: "Al-Fiqh ul Muyassar by Maulana Shafiqur Rahman Nadvi",
+      detail: null,
+    });
+    expect(parseNodeDescription("Core Module · Core texts: Hidayatun Nahw (Part 1); Sarf module")).toEqual({
+      status: "Core",
+      coreText: "Hidayatun Nahw (Part 1); Sarf module",
+      detail: null,
+    });
+  });
+
+  it("extracts core text even without a Module prefix", () => {
+    expect(parseNodeDescription("Core text: Arabiyyah Bayna Yadayk")).toEqual({
+      status: null,
+      coreText: "Arabiyyah Bayna Yadayk",
+      detail: null,
+    });
+  });
+
+  it("keeps a non-core-text detail segment", () => {
+    expect(parseNodeDescription("Core Module · PPT Based")).toEqual({
+      status: "Core",
+      coreText: null,
+      detail: "PPT Based",
+    });
+  });
+
+  it("handles status + detail + core text together", () => {
+    expect(
+      parseNodeDescription("Optional Module · PPT Based · Core text: Ḥayāt aṣ-Ṣaḥābah by Shaykh Muḥammad Yūsuf"),
+    ).toEqual({
+      status: "Optional",
+      coreText: "Ḥayāt aṣ-Ṣaḥābah by Shaykh Muḥammad Yūsuf",
+      detail: "PPT Based",
+    });
   });
 });

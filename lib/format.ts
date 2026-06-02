@@ -23,3 +23,46 @@ export function timeAgo(date: string | Date): string {
 
   return `${Math.round(days / 365)}y ago`;
 }
+
+export type NodeMeta = {
+  status: "Core" | "Optional" | null;
+  coreText: string | null;
+  detail: string | null;
+};
+
+/**
+ * Parse a course/subject `description` like
+ * "Core Module · Core text: Al-Fiqh ul Muyassar by …" into its parts, so a card
+ * can show a status pill + a tidy core-text line instead of the raw string.
+ * Tolerant of missing pieces: course descriptions are null, some subjects are a
+ * bare "Core Module", and a few carry "Core text: …" with no "Module" prefix.
+ */
+export function parseNodeDescription(description: string | null | undefined): NodeMeta {
+  const segments = (description ?? "")
+    .split("·")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  let status: NodeMeta["status"] = null;
+  let coreText: string | null = null;
+  const details: string[] = [];
+
+  segments.forEach((segment, index) => {
+    if (index === 0 && /^core module$/i.test(segment)) {
+      status = "Core";
+      return;
+    }
+    if (index === 0 && /^optional module$/i.test(segment)) {
+      status = "Optional";
+      return;
+    }
+    const coreTextMatch = segment.match(/^core texts?:\s*(.+)$/i);
+    if (coreTextMatch) {
+      coreText = coreTextMatch[1].trim();
+      return;
+    }
+    details.push(segment);
+  });
+
+  return { status, coreText, detail: details.length ? details.join(" · ") : null };
+}
