@@ -15,7 +15,7 @@ export async function AdminShell({ eyebrow, title, description, breadcrumbs, chi
   const { user, profile } = await requireUser();
 
   return (
-    <main className="min-h-screen bg-paper px-6 py-10 text-ink">
+    <main className="min-h-screen bg-paper px-6 py-10 text-ink lg:px-10 xl:px-12">
       {profile ? <ThemeSync initialTheme={profile.theme} /> : null}
       <section className="mx-auto max-w-6xl">
         <NavBar role="admin" displayName={profile?.full_name ?? null} email={user.email ?? ""} />

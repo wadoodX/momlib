@@ -76,7 +76,7 @@ function ResourcePreview({ resource, preview }: { resource: ResourceLink; previe
       <div className="mt-5 overflow-hidden rounded-2xl border border-line bg-paper-soft">
         {/* Signed Supabase URLs are dynamic, so Next image remote patterns are not useful here. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={preview.src} alt={resource.title} className="max-h-[720px] w-full object-contain" />
+        <img src={preview.src} alt={resource.title || "Resource"} loading="lazy" className="max-h-[720px] w-full object-contain" />
       </div>
     );
   }
@@ -84,7 +84,7 @@ function ResourcePreview({ resource, preview }: { resource: ResourceLink; previe
   if (preview.type === "video") {
     return (
       <div className="mt-5 overflow-hidden rounded-2xl border border-line bg-black">
-        <video src={preview.src} controls className="w-full" />
+        <video src={preview.src} controls preload="metadata" className="w-full" />
       </div>
     );
   }
@@ -95,6 +95,7 @@ function ResourcePreview({ resource, preview }: { resource: ResourceLink; previe
         <iframe
           title={resource.title}
           src={preview.src}
+          loading="lazy"
           className="h-[680px] w-full"
           allow="fullscreen; clipboard-read; clipboard-write"
           referrerPolicy="no-referrer"

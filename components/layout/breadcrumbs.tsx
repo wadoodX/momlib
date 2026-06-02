@@ -23,7 +23,10 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
         return (
           <Fragment key={`${item.label}-${index}`}>
             {item.href && !isLast ? (
-              <Link href={item.href} className="transition hover:text-gold">
+              <Link
+                href={item.href}
+                className="rounded-sm transition hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
                 {item.label}
               </Link>
             ) : (

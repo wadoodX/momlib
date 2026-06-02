@@ -251,7 +251,7 @@ export async function createFileResource(formData: FormData) {
 
   const resourceId = crypto.randomUUID();
   const fileName = sanitizeFileName(file.name);
-  const filePath = await buildResourcePath(chapterId, resourceId, fileName);
+  const filePath = await buildResourcePath(supabase, chapterId, resourceId, fileName);
   const resourceType = inferResourceType(file);
 
   await uploadResource(supabase, filePath, file);
@@ -401,8 +401,12 @@ function inferResourceType(file: File): ResourceType {
   throw new Error("Unsupported file type. Upload PDF, PPT/PPTX, DOC/DOCX, images, or videos.");
 }
 
-async function buildResourcePath(chapterId: string, resourceId: string, fileName: string) {
-  const supabase = await createClient();
+async function buildResourcePath(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  chapterId: string,
+  resourceId: string,
+  fileName: string,
+) {
   const { data: chapter, error: chapterError } = await supabase
     .from("chapters")
     .select("id, subject_id")

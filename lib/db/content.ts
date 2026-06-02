@@ -3,6 +3,8 @@ import { signedResourceUrl } from "@/lib/storage/resources";
 import { queryTerms, titleMatches, rowMatchesQuery, ilikeOrFilters } from "@/lib/search-match";
 import type { Database } from "@/types/database";
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
 export type Course = Database["public"]["Tables"]["courses"]["Row"];
 export type Subject = Database["public"]["Tables"]["subjects"]["Row"];
 export type Chapter = Database["public"]["Tables"]["chapters"]["Row"];
@@ -177,7 +179,7 @@ export async function getPublishedResourcesForChapter(chapterId: string): Promis
     throw new Error(error.message);
   }
 
-  return Promise.all((data as Resource[]).map((resource) => addResourceHref(resource)));
+  return Promise.all((data as Resource[]).map((resource) => addResourceHref(supabase, resource)));
 }
 
 // Embed the chapter -> subject -> course chain so search results carry their
@@ -197,9 +199,13 @@ export const MAX_SEARCH_RESULTS = 25;
 
 /** Shared search core: filter candidate rows in JS, then shape only the few
  *  shown rows (signing URLs is relatively expensive). */
-export async function shapeSearchResults(rows: SearchRow[], query: string): Promise<ResourceSearchResult[]> {
+export async function shapeSearchResults(
+  supabase: SupabaseServerClient,
+  rows: SearchRow[],
+  query: string,
+): Promise<ResourceSearchResult[]> {
   const matched = rows.filter((row) => rowMatchesQuery(row, query)).slice(0, MAX_SEARCH_RESULTS);
-  return Promise.all(matched.map((row) => addResourceSearchContext(row)));
+  return Promise.all(matched.map((row) => addResourceSearchContext(supabase, row)));
 }
 
 export async function searchPublishedResources(query: string): Promise<ResourceSearchResult[]> {
@@ -237,7 +243,7 @@ export async function searchPublishedResources(query: string): Promise<ResourceS
     throw new Error(error.message);
   }
 
-  return shapeSearchResults((data ?? []) as unknown as SearchRow[], trimmedQuery);
+  return shapeSearchResults(supabase, (data ?? []) as unknown as SearchRow[], trimmedQuery);
 }
 
 /* ---------- structure search (courses / subjects / chapters by their own name) ---------- */
@@ -335,12 +341,15 @@ export async function searchPublishedStructure(query: string): Promise<Structure
   return gatherStructure(supabase, query.trim(), false);
 }
 
-export async function addResourceSearchContext(row: SearchRow): Promise<ResourceSearchResult> {
+export async function addResourceSearchContext(
+  supabase: SupabaseServerClient,
+  row: SearchRow,
+): Promise<ResourceSearchResult> {
   const { chapter: chapterWithSubject, ...resource } = row;
   const subjectWithCourse = chapterWithSubject?.subject ?? null;
   const course = subjectWithCourse?.course ?? null;
 
-  const resourceWithHref = await addResourceHref(resource as Resource);
+  const resourceWithHref = await addResourceHref(supabase, resource as Resource);
 
   const chapter = chapterWithSubject ? omit(chapterWithSubject, "subject") as Chapter : null;
   const subject = subjectWithCourse ? omit(subjectWithCourse, "course") as Subject : null;
@@ -354,7 +363,7 @@ function omit<T extends object, K extends keyof T>(value: T, key: K): Omit<T, K>
   return copy;
 }
 
-async function addResourceHref(resource: Resource): Promise<ResourceLink> {
+async function addResourceHref(supabase: SupabaseServerClient, resource: Resource): Promise<ResourceLink> {
   if (resource.external_url) {
     return { ...resource, href: resource.external_url };
   }
@@ -363,7 +372,6 @@ async function addResourceHref(resource: Resource): Promise<ResourceLink> {
     return { ...resource, href: null };
   }
 
-  const supabase = await createClient();
   const href = await signedResourceUrl(supabase, resource.file_path, 60 * 60);
 
   return { ...resource, href };
@@ -415,10 +423,16 @@ export async function recordChapterView(chapterId: string): Promise<void> {
     return;
   }
 
-  // RLS limits writes to the signed-in user's own rows.
-  await supabase
+  // RLS limits writes to the signed-in user's own rows. View tracking is
+  // best-effort and runs during page render, so log a failure rather than throw
+  // (throwing would break the chapter page).
+  const { error } = await supabase
     .from("chapter_views")
     .upsert({ user_id: user.id, chapter_id: chapterId, viewed_at: new Date().toISOString() }, { onConflict: "user_id,chapter_id" });
+
+  if (error) {
+    console.error(`Failed to record chapter view for ${chapterId}: ${error.message}`);
+  }
 }
 
 export type RecentChapter = {

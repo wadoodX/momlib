@@ -51,7 +51,7 @@ export function NodeCard({
       <span
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-28"
-        style={{ background: `linear-gradient(180deg, ${hex}1f, transparent)` }}
+        style={{ background: `linear-gradient(180deg, ${hex}26, transparent)` }}
       />
 
       <div className="relative flex flex-1 flex-col p-6">
@@ -61,7 +61,7 @@ export function NodeCard({
             <span
               className={cn(
                 "ml-auto inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide",
-                status === "Core" ? "border-gold/30 bg-gold/10 text-gold" : "border-line bg-paper-soft text-muted",
+                status === "Core" ? "border-gold/40 bg-paper-soft text-gold" : "border-line bg-paper-soft text-muted",
               )}
             >
               {status}
@@ -69,7 +69,7 @@ export function NodeCard({
           ) : null}
         </div>
 
-        <h2 className="mt-4 font-display text-xl font-semibold leading-snug text-ink">{title}</h2>
+        <h2 className="mt-4 line-clamp-2 font-display text-xl font-semibold leading-snug text-ink">{title}</h2>
 
         {hasMeta ? <span aria-hidden className="mt-3 block h-px w-10 bg-gold/60" /> : null}
 
