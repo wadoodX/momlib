@@ -58,8 +58,10 @@ export async function removeResources(supabase: SupabaseClient, keys: string[]):
     for (const batch of chunk(paths, SUPABASE_REMOVE_BATCH)) {
       await supabase.storage.from(BUCKET).remove(batch);
     }
-  } catch {
-    /* best-effort: leave orphaned bytes rather than fail the delete */
+  } catch (error) {
+    // Best-effort: leave orphaned bytes rather than fail the delete, but surface
+    // the failure so orphans can be reconciled.
+    console.error(`Failed to remove resource files (${paths.length}):`, error);
   }
 }
 

@@ -11,7 +11,7 @@ type LoginPageProps = {
 };
 
 const inputClass =
-  "mt-2 w-full rounded-2xl border border-line bg-paper-soft px-4 py-3 text-ink outline-none transition focus:border-sage";
+  "mt-2 w-full rounded-2xl border border-line bg-paper-soft px-4 py-3 text-ink outline-none transition focus:border-sage focus-visible:ring-2 focus-visible:ring-sage";
 
 const HEADINGS = {
   signin: { title: "Sign in", subtitle: "Sign in to your account to access the portal." },
@@ -61,7 +61,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <PasswordField name="confirm_password" label="Confirm password" autoComplete="new-password" required minLength={8} />
             <button
               type="submit"
-              className="w-full rounded-2xl bg-sage px-4 py-3 text-sm font-semibold text-paper transition hover:bg-sage-deep"
+              className="w-full rounded-2xl bg-sage px-4 py-3 text-sm font-semibold text-paper transition hover:bg-sage-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Create account
             </button>
@@ -74,7 +74,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </label>
             <button
               type="submit"
-              className="w-full rounded-2xl bg-sage px-4 py-3 text-sm font-semibold text-paper transition hover:bg-sage-deep"
+              className="w-full rounded-2xl bg-sage px-4 py-3 text-sm font-semibold text-paper transition hover:bg-sage-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Send reset link
             </button>
@@ -94,7 +94,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </div>
             <button
               type="submit"
-              className="w-full rounded-2xl bg-sage px-4 py-3 text-sm font-semibold text-paper transition hover:bg-sage-deep"
+              className="w-full rounded-2xl bg-sage px-4 py-3 text-sm font-semibold text-paper transition hover:bg-sage-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Sign in
             </button>

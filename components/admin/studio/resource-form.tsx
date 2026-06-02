@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { createFileResource, createLinkResource } from "@/lib/admin/content-actions";
 
 const inputClass =
-  "mt-1.5 w-full rounded-xl border border-line bg-paper-soft px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted focus:border-sage";
+  "mt-1.5 w-full rounded-xl border border-line bg-paper-soft px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted focus:border-sage focus-visible:ring-2 focus-visible:ring-sage";
 
 export function ResourceForm({ chapterId }: { chapterId: string }) {
   const router = useRouter();
@@ -78,7 +78,7 @@ export function ResourceForm({ chapterId }: { chapterId: string }) {
               name="file"
               type="file"
               accept=".pdf,.ppt,.pptx,.doc,.docx,image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-              className="mt-1.5 w-full rounded-xl border border-line bg-paper-soft px-3 py-2.5 text-sm text-ink file:mr-3 file:rounded-full file:border-0 file:bg-sage file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-paper"
+              className="mt-1.5 w-full rounded-xl border border-line bg-paper-soft px-3 py-2.5 text-sm text-ink outline-none transition focus:border-sage focus-visible:ring-2 focus-visible:ring-sage file:mr-3 file:rounded-full file:border-0 file:bg-sage file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-paper"
             />
           </label>
         ) : (
@@ -104,7 +104,7 @@ export function ResourceForm({ chapterId }: { chapterId: string }) {
         <button
           type="submit"
           disabled={pending}
-          className="justify-self-start rounded-xl bg-sage px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-sage-deep disabled:opacity-60"
+          className="justify-self-start rounded-xl bg-sage px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-sage-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60"
         >
           {pending ? "Adding…" : mode === "file" ? "Upload file" : "Add link"}
         </button>

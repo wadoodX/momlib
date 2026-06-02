@@ -17,7 +17,7 @@ function initials(name: string | null, email: string) {
 }
 
 const inputClass =
-  "mt-2 w-full rounded-2xl border border-line bg-paper-soft px-4 py-3 text-ink outline-none transition placeholder:text-muted focus:border-sage";
+  "mt-2 w-full rounded-2xl border border-line bg-paper-soft px-4 py-3 text-ink outline-none transition placeholder:text-muted focus:border-sage focus-visible:ring-2 focus-visible:ring-sage";
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const { user, profile } = await requireUser();

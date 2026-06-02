@@ -15,7 +15,9 @@
   --color-line: #dcd4c4;
   --color-sage: #7c9468;
   --color-sage-deep: #5e7350;
-  --color-gold: #bf9f53;
+  /* Deepened from #bf9f53 so gold *text* clears WCAG AA (4.5:1) on the parchment
+     paper/card backgrounds; dark mode keeps the brighter gold below. */
+  --color-gold: #7a5f22;
 
   /* shadcn-compatible aliases mapped to the parchment palette, so the
      components/ui primitives render on theme. NOTE: --color-muted is

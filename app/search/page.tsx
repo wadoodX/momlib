@@ -70,9 +70,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           name="q"
           defaultValue={query}
           placeholder="Search notes, files, or topics"
-          className="min-h-12 flex-1 rounded-2xl border border-line bg-paper-soft px-4 text-ink outline-none transition placeholder:text-muted focus:border-sage"
+          className="min-h-12 flex-1 rounded-2xl border border-line bg-paper-soft px-4 text-ink outline-none transition placeholder:text-muted focus:border-sage focus-visible:ring-2 focus-visible:ring-sage"
         />
-        <button type="submit" className="rounded-2xl bg-sage px-6 py-3 text-sm font-semibold text-paper hover:bg-sage-deep">
+        <button type="submit" className="rounded-2xl bg-sage px-6 py-3 text-sm font-semibold text-paper hover:bg-sage-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2 focus-visible:ring-offset-background">
           Search
         </button>
       </form>

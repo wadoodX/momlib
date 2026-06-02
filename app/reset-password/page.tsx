@@ -43,7 +43,7 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
             />
             <button
               type="submit"
-              className="w-full rounded-2xl bg-sage px-4 py-3 text-sm font-semibold text-paper transition hover:bg-sage-deep"
+              className="w-full rounded-2xl bg-sage px-4 py-3 text-sm font-semibold text-paper transition hover:bg-sage-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Update password
             </button>
@@ -55,7 +55,7 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
             </p>
             <Link
               href="/login?mode=reset"
-              className="mt-6 inline-flex rounded-2xl bg-sage px-5 py-3 text-sm font-semibold text-paper transition hover:bg-sage-deep"
+              className="mt-6 inline-flex rounded-2xl bg-sage px-5 py-3 text-sm font-semibold text-paper transition hover:bg-sage-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Request a new link
             </Link>

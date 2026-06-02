@@ -377,7 +377,7 @@ export async function searchAllResources(query: string): Promise<ResourceSearchR
     throw new Error(error.message);
   }
 
-  return shapeSearchResults((data ?? []) as unknown as SearchRow[], trimmed);
+  return shapeSearchResults(supabase, (data ?? []) as unknown as SearchRow[], trimmed);
 }
 
 /** Teacher structure search across ALL courses/subjects/chapters (incl. drafts). */

@@ -57,11 +57,29 @@ export function ContentStudio({ tree: initialTree }: { tree: CourseNode[] }) {
     if (!resizingRef.current) return;
     resizingRef.current = false;
     e.currentTarget.releasePointerCapture(e.pointerId);
+    persistNavWidth(navWidth);
+  }
+
+  function persistNavWidth(width: number) {
     try {
-      localStorage.setItem(NAV_KEY, String(navWidth));
+      localStorage.setItem(NAV_KEY, String(width));
     } catch {
       /* ignore storage failures (private mode, etc.) */
     }
+  }
+
+  // Keyboard support for the resize handle (arrows nudge, Home/End jump to bounds).
+  function onResizeKey(e: React.KeyboardEvent<HTMLDivElement>) {
+    let next: number | null = null;
+    if (e.key === "ArrowLeft") next = navWidth - 16;
+    else if (e.key === "ArrowRight") next = navWidth + 16;
+    else if (e.key === "Home") next = MIN_NAV;
+    else if (e.key === "End") next = MAX_NAV;
+    if (next === null) return;
+    e.preventDefault();
+    const clamped = Math.min(MAX_NAV, Math.max(MIN_NAV, next));
+    setNavWidth(clamped);
+    persistNavWidth(clamped);
   }
 
   // Re-sync the local (optimistic) tree whenever the server sends a fresh one,
@@ -176,13 +194,18 @@ export function ContentStudio({ tree: initialTree }: { tree: CourseNode[] }) {
         <div
           role="separator"
           aria-orientation="vertical"
-          aria-label="Resize list"
+          aria-label="Resize list panel"
+          aria-valuemin={MIN_NAV}
+          aria-valuemax={MAX_NAV}
+          aria-valuenow={navWidth}
+          tabIndex={0}
           onPointerDown={startResize}
           onPointerMove={onResize}
           onPointerUp={endResize}
-          className="group absolute -right-3 top-0 hidden h-full w-6 cursor-col-resize touch-none lg:flex lg:items-center lg:justify-center"
+          onKeyDown={onResizeKey}
+          className="group absolute -right-3 top-0 hidden h-full w-6 cursor-col-resize touch-none rounded-full focus-visible:outline-none lg:flex lg:items-center lg:justify-center"
         >
-          <span className="h-10 w-1 rounded-full bg-line transition group-hover:bg-sage" />
+          <span className="h-10 w-1 rounded-full bg-line transition group-hover:bg-sage group-hover:h-14 group-focus-visible:h-14 group-focus-visible:bg-sage group-focus-visible:ring-2 group-focus-visible:ring-sage/40" />
         </div>
       </aside>
 
