@@ -28,7 +28,7 @@ grant execute on function public.is_admin() to authenticated;
 revoke execute on function public.admin_engagement_summary() from public, anon;
 grant execute on function public.admin_engagement_summary() to authenticated;
 
-revoke execute on function public.admin_top_viewed_chapters(integer) from public, anon;
+revoke execute on function public.admin_top_viewed_chapters(integer) from public, anon;   
 grant execute on function public.admin_top_viewed_chapters(integer) to authenticated;
 
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
