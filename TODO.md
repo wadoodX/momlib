@@ -63,7 +63,7 @@ an applied migration is more risk than the cosmetic gain).
 
 - [x] **Merge** — PR #7 merged (`main ← claude/portal-build`).
 
-### Code-review remediation — 2026-06-03 multi-agent review (all addressed · 59 tests green)
+### Code-review remediation — 2026-06-03 multi-agent review (all addressed · 65 tests green)
 - **Security / RLS:** `chapter_views` writes now require a fully-published chapter chain
   (migration applied to live DB); all `/admin/*` routes guarded at `app/admin/layout.tsx`;
   `requireUser()` throws on a missing profile; +12 security tests (`guards.test.ts`,

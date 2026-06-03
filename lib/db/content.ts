@@ -451,10 +451,15 @@ export async function getRecentlyViewedChapters(limit = 6): Promise<RecentChapte
   const supabase = await createClient();
 
   // chapter_views is RLS-scoped to the current user; `!inner` drops chapters whose
-  // published chain is no longer visible (reuses the search embed pattern above).
+  // published chain is no longer visible. The explicit is_published filters mirror
+  // getStudentStats and the published-chain rule, so this stays correct (and the
+  // limit caps real matches) even if chapter RLS were ever relaxed.
   const { data, error } = await supabase
     .from("chapter_views")
     .select("viewed_at, chapter:chapters!inner(*, subject:subjects!inner(*, course:courses!inner(*)))")
+    .eq("chapter.is_published", true)
+    .eq("chapter.subject.is_published", true)
+    .eq("chapter.subject.course.is_published", true)
     .order("viewed_at", { ascending: false })
     .limit(limit);
 

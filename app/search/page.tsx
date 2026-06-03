@@ -76,7 +76,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       </form>
 
       <div className="mt-8 space-y-8">
-        {query.length === 0 ? (
+        {query.trim().length < 2 ? (
           <EmptyState title="Start with a search term" description="Type at least two characters to search." />
         ) : !hasResults ? (
           <EmptyState title="No matching results" description="Try a different course, subject, chapter, or resource name." />

@@ -22,7 +22,9 @@ npm run gen:types      # regenerate types/database.ts from the live schema (need
 ```
 
 Tests live in `lib/__tests__/*.test.ts` and cover **pure helpers** (slug, search-match, format,
-storage routing, storage-cleanup). UI and DB-bound code is generally not unit-tested.
+storage routing, storage-cleanup) plus the **security-critical layer** via fake/recording Supabase
+clients: auth guards (`guards.test.ts`) and the published-chain query filters
+(`content-published.test.ts`). UI and most DB-mutation code is still not unit-tested.
 
 ## Environment
 

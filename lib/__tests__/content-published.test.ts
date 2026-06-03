@@ -19,13 +19,13 @@ import { createClient } from "@/lib/supabase/server";
 // getStudentStats) are covered too.
 const mocks = vi.hoisted(() => ({
   rows: [] as unknown[],
-  queries: [] as { table: string; eq: [string, unknown][] }[],
+  queries: [] as { table: string; eq: [string, unknown][]; or: string[] }[],
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     from: (table: string) => {
-      const rec = { table, eq: [] as [string, unknown][] };
+      const rec = { table, eq: [] as [string, unknown][], or: [] as string[] };
       mocks.queries.push(rec);
       const builder: Record<string, unknown> = {
         select: () => builder,
@@ -33,7 +33,10 @@ vi.mock("@/lib/supabase/server", () => ({
           rec.eq.push([col, val]);
           return builder;
         },
-        or: () => builder,
+        or: (filter: string) => {
+          rec.or.push(filter);
+          return builder;
+        },
         order: () => builder,
         limit: () => builder,
         maybeSingle: async () => ({ data: mocks.rows[0] ?? null, error: null }),
@@ -116,6 +119,7 @@ describe("published-chain filtering — embedded multi-level filters", () => {
     expect(hasEq(q, "chapter.is_published", true)).toBe(true);
     expect(hasEq(q, "chapter.subject.is_published", true)).toBe(true);
     expect(hasEq(q, "chapter.subject.course.is_published", true)).toBe(true);
+    expect(q.or.length).toBeGreaterThan(0); // search-term ILIKE filters are applied
   });
 
   it("getStudentStats counts only the student's visible published chain (viewed chapters)", async () => {
@@ -145,6 +149,10 @@ describe("gatherStructure — student vs admin visibility", () => {
     expect(hasEq(chapters, "is_published", true)).toBe(true);
     expect(hasEq(chapters, "subject.is_published", true)).toBe(true);
     expect(hasEq(chapters, "subject.course.is_published", true)).toBe(true);
+    // each entity is also matched on its own title (search-term ILIKE filters)
+    expect(courses.or.length).toBeGreaterThan(0);
+    expect(subjects.or.length).toBeGreaterThan(0);
+    expect(chapters.or.length).toBeGreaterThan(0);
   });
 
   it("admins (includeUnpublished) get NO is_published filters", async () => {

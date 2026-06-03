@@ -79,6 +79,8 @@ the Supabase dashboard **SQL Editor** or the CLI (`supabase db push`):
 - `…_add_chapter_views_chapter_idx.sql` — FK index for `chapter_views.chapter_id`
 - `…_harden_chapter_views_published_chain.sql` — view writes require a fully-published chapter chain
 - `…_admin_resource_type_breakdown.sql` — grouped resource-count RPC for the admin dashboard
+- `…_guard_admin_rpcs.sql` — admin analytics RPCs raise `insufficient_privilege` for non-admins (was: return empty)
+- `…_lock_single_admin_and_tidy_grants.sql` — partial unique index enforcing at most one admin; revoke `set_updated_at` from `public`/`anon`
 
 > ⚠️ Until `…_add_profile_theme.sql` is applied, the profile query fails and `requireUser()`
 > **throws on every page** (admins are no longer silently downgraded to students). Apply migrations first.

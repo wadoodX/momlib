@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 function safeNext(value: string | null) {
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+  // Same-origin path only: leading "/", not "//" or "/\", and no backslashes.
+  return value && /^\/(?![/\\])/.test(value) && !value.includes("\\") ? value : "/dashboard";
 }
 
 // Exchanges a Supabase auth code (e.g. from a password-recovery email) for a
