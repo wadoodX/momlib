@@ -363,6 +363,8 @@ function omit<T extends object, K extends keyof T>(value: T, key: K): Omit<T, K>
   return copy;
 }
 
+// Signs the file for `resource`. Callers must only pass resources already loaded
+// by a published-chain-filtered query — R2 signing has no RLS (see signedResourceUrl).
 async function addResourceHref(supabase: SupabaseServerClient, resource: Resource): Promise<ResourceLink> {
   if (resource.external_url) {
     return { ...resource, href: resource.external_url };
