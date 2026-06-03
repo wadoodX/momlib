@@ -13,6 +13,9 @@ type PageShellProps = {
   icon?: string | null;
   color?: string | null;
   iconKind?: "course" | "subject";
+  /** "full" (default) fills the viewport (for card grids); "narrow" centers the
+   *  header + content in a reading column (for form pages like Settings). */
+  width?: "full" | "narrow";
   children: React.ReactNode;
 };
 
@@ -25,6 +28,7 @@ export async function PageShell({
   icon,
   color,
   iconKind,
+  width = "full",
   children,
 }: PageShellProps) {
   const { user, profile } = await requireUser();
@@ -32,7 +36,7 @@ export async function PageShell({
   return (
     <main className="min-h-screen bg-paper px-6 py-10 text-ink lg:px-10 xl:px-12 2xl:px-16">
       {profile ? <ThemeSync initialTheme={profile.theme} /> : null}
-      <section className="w-full">
+      <section className={width === "narrow" ? "mx-auto w-full max-w-3xl" : "w-full"}>
         <NavBar role={profile?.role ?? role} displayName={profile?.full_name ?? null} email={user.email ?? ""} />
 
         {breadcrumbs ? <Breadcrumbs items={breadcrumbs} /> : null}
