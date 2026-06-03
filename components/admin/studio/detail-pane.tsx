@@ -144,6 +144,9 @@ export function DetailPane({ selected, onDeleted }: { selected: SelectedNode; on
 
 function ResourcesSection({ chapterId }: { chapterId: string }) {
   const [resources, setResources] = useState<Resource[] | null>(null);
+  // Tracks the latest reorder write so a row's onChanged refetch doesn't land
+  // before it commits and briefly revert the visual order.
+  const reorderRef = useRef<Promise<unknown>>(Promise.resolve());
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -169,7 +172,9 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
     if (oldIndex === -1 || newIndex === -1) return;
     const next = arrayMove(resources, oldIndex, newIndex);
     setResources(next);
-    void reorder("resource", next.map((r) => r.id));
+    reorderRef.current = reorder("resource", next.map((r) => r.id)).catch((e) => {
+      console.error("Failed to persist resource order:", e);
+    });
   }
 
   return (
@@ -191,7 +196,10 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
                 <ResourceRow
                   key={resource.id}
                   resource={resource}
-                  onChanged={() => listChapterResources(chapterId).then(setResources)}
+                  onChanged={async () => {
+                    await reorderRef.current; // don't clobber an in-flight reorder
+                    setResources(await listChapterResources(chapterId));
+                  }}
                 />
               ))}
             </ul>
@@ -204,7 +212,6 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
 
 function ResourceRow({ resource, onChanged }: { resource: Resource; onChanged: () => void }) {
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: resource.id });
 
@@ -235,7 +242,7 @@ function ResourceRow({ resource, onChanged }: { resource: Resource; onChanged: (
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn("rounded-2xl border border-line bg-card p-4", isDragging && "opacity-60")}
     >
-      <form ref={formRef} action={save} className="flex flex-wrap items-center gap-3">
+      <form action={save} className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           aria-label="Drag to reorder"

@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 function getSafeNextPath(value: FormDataEntryValue | null) {
-  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
+  // Same-origin path only: leading "/", not "//" or "/\" (some browsers normalize
+  // a backslash to a slash → off-site redirect), and no backslashes anywhere.
+  if (typeof value !== "string" || !/^\/(?![/\\])/.test(value) || value.includes("\\")) {
     return "/dashboard";
   }
 
@@ -89,10 +91,16 @@ export async function requestPasswordReset(formData: FormData) {
     redirect(`/login?mode=reset&message=${encodeURIComponent("Enter your email address.")}`);
   }
 
-  const headerList = await headers();
-  const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
-  const proto = headerList.get("x-forwarded-proto") ?? "https";
-  const origin = host ? `${proto}://${host}` : "";
+  // Prefer the configured site URL for the reset link so a spoofed Host header
+  // can't point the recovery link off-site (host-header poisoning). Fall back to
+  // the request origin only when NEXT_PUBLIC_SITE_URL isn't set (e.g. local dev).
+  let origin = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  if (!origin) {
+    const headerList = await headers();
+    const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
+    const proto = headerList.get("x-forwarded-proto") ?? "https";
+    origin = host ? `${proto}://${host}` : "";
+  }
 
   const supabase = await createClient();
   await supabase.auth.resetPasswordForEmail(email, {
