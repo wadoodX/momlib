@@ -228,11 +228,14 @@ export default function HeroLantern({ animate = true }: { animate?: boolean }) {
     return small && fewCores;
   }, []);
 
+  const sparkleCount = useMemo(
+    () => (typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches ? 24 : 60),
+    [],
+  );
+
   if (failed || lowPower || !animate) {
     return <LanternFallback />;
   }
-
-  const sparkleCount = typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches ? 24 : 60;
 
   return (
     <WebGLErrorBoundary fallback={<LanternFallback />}>

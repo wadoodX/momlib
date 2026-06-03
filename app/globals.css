@@ -43,6 +43,9 @@
      `border-destructive`, and `bg-destructive` + `text-destructive-foreground`. */
   --color-destructive: #9e3b2e;
   --color-destructive-foreground: #f6f3ea;
+  /* Modal/sheet scrim — intentionally dark in BOTH themes (a scrim shouldn't
+     invert), so it's defined once here and not redefined in .dark. */
+  --color-overlay: #14171a;
 }
 
 :root {

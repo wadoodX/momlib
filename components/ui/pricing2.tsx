@@ -120,14 +120,12 @@ const Pricing2 = ({
                   </span>
                   {plan.isFree ? (
                     <p className="text-muted-foreground">Always free for students</p>
-                  ) : (
+                  ) : isYearly ? (
                     <p className="text-muted-foreground">
-                      Billed{" "}
-                      {isYearly
-                        ? `$${Number(plan.yearlyPrice.slice(1)) * 12}`
-                        : `$${Number(plan.monthlyPrice.slice(1)) * 12}`}{" "}
-                      annually
+                      Billed ${(parseFloat(plan.yearlyPrice.replace(/[^0-9.]/g, "")) * 12).toFixed(0)} annually
                     </p>
+                  ) : (
+                    <p className="text-muted-foreground">Billed monthly</p>
                   )}
                 </CardHeader>
                 <CardContent>
@@ -136,8 +134,8 @@ const Pricing2 = ({
                     <p className="mb-3 font-semibold">Everything in Free, and:</p>
                   )}
                   <ul className="space-y-4">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-center gap-2">
+                    {plan.features.map((feature) => (
+                      <li key={feature.text} className="flex items-center gap-2">
                         <CircleCheck className="size-4" />
                         <span>{feature.text}</span>
                       </li>
