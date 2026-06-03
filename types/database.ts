@@ -306,6 +306,13 @@ export type Database = {
           views_7d: number;
         }[];
       };
+      admin_resource_type_breakdown: {
+        Args: Record<string, never>;
+        Returns: {
+          resource_type: string;
+          count: number;
+        }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

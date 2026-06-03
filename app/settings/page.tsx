@@ -132,7 +132,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             <div className="flex items-center justify-between gap-4 py-3">
               <dt className="text-sm text-muted">Role</dt>
               <dd>
-                <span className="rounded-full bg-gold/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] text-gold">
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
                   {role === "admin" ? "Teacher" : "Student"}
                 </span>
               </dd>

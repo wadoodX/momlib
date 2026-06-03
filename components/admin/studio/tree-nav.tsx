@@ -5,6 +5,7 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -12,6 +13,7 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
   arrayMove,
   useSortable,
 } from "@dnd-kit/sortable";
@@ -142,7 +144,10 @@ function SortableGroup<T extends { id: string }>({
   onReorder: (items: T[]) => void;
   children: (item: T) => ReactNode;
 }) {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -217,7 +222,7 @@ function Row({
             <button
               type="button"
               aria-label="Drag to reorder"
-              className="cursor-grab touch-none text-line opacity-0 transition group-hover:opacity-100 active:cursor-grabbing"
+              className="cursor-grab touch-none text-line opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing"
               {...attributes}
               {...listeners}
             >
@@ -266,9 +271,7 @@ function Row({
             >
               <span className="truncate">{node.title}</span>
               {!node.is_published ? (
-                <span className="shrink-0 rounded-full bg-paper-soft px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
-                  Draft
-                </span>
+                <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.15em] text-muted">Draft</span>
               ) : null}
             </button>
           )}

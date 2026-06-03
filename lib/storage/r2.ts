@@ -29,17 +29,24 @@ export function r2Enabled(): boolean {
   return Boolean(e.accountId && e.accessKeyId && e.secretAccessKey && e.bucket);
 }
 
-let client: S3Client | null = null;
+// Cache the client but key it on the credential tuple, so rotated R2_* env vars
+// take effect (a plain module-scope singleton would pin stale credentials for the
+// life of the process).
+let cached: { client: S3Client; sig: string } | null = null;
 function s3(): { client: S3Client; bucket: string } {
   const e = env();
-  if (!client) {
-    client = new S3Client({
-      region: "auto",
-      endpoint: `https://${e.accountId}.r2.cloudflarestorage.com`,
-      credentials: { accessKeyId: e.accessKeyId as string, secretAccessKey: e.secretAccessKey as string },
-    });
+  const sig = `${e.accountId}:${e.accessKeyId}:${e.secretAccessKey}`;
+  if (!cached || cached.sig !== sig) {
+    cached = {
+      sig,
+      client: new S3Client({
+        region: "auto",
+        endpoint: `https://${e.accountId}.r2.cloudflarestorage.com`,
+        credentials: { accessKeyId: e.accessKeyId as string, secretAccessKey: e.secretAccessKey as string },
+      }),
+    };
   }
-  return { client, bucket: e.bucket as string };
+  return { client: cached.client, bucket: e.bucket as string };
 }
 
 /** Split a list into batches of `size` (DeleteObjects allows ≤1000 per call). Pure. */

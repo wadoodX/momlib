@@ -105,7 +105,7 @@ export function DetailPane({ selected, onDeleted }: { selected: SelectedNode; on
           Published
         </label>
 
-        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
         <div className="flex items-center gap-3">
           <button
@@ -120,7 +120,7 @@ export function DetailPane({ selected, onDeleted }: { selected: SelectedNode; on
             type="button"
             onClick={remove}
             disabled={pending}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-xl border border-red-900/40 px-4 py-2.5 text-sm font-semibold text-red-500 transition hover:border-red-500 disabled:opacity-60"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-xl border border-destructive/40 px-4 py-2.5 text-sm font-semibold text-destructive transition hover:border-destructive disabled:opacity-60"
           >
             <Trash2 className="size-4" />
             Delete
@@ -244,9 +244,7 @@ function ResourceRow({ resource, onChanged }: { resource: Resource; onChanged: (
           required
           className="min-w-40 flex-1 rounded-lg border border-line bg-paper-soft px-3 py-2 text-sm text-ink outline-none focus:border-sage"
         />
-        <span className="rounded-full bg-paper-soft px-2.5 py-1 text-xs uppercase tracking-wide text-muted">
-          {resource.resource_type}
-        </span>
+        <span className="text-xs uppercase tracking-wide text-muted">{resource.resource_type}</span>
         {resource.external_url ? (
           <a
             href={resource.external_url}
@@ -273,7 +271,7 @@ function ResourceRow({ resource, onChanged }: { resource: Resource; onChanged: (
           type="button"
           onClick={remove}
           disabled={pending}
-          className="text-red-500 transition hover:text-red-600"
+          className="text-destructive transition hover:text-destructive/80"
           aria-label="Delete resource"
         >
           <Trash2 className="size-4" />

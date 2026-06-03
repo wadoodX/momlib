@@ -34,7 +34,7 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
                 {item.label}
               </span>
             )}
-            {!isLast ? <span className="text-line">/</span> : null}
+            {!isLast ? <span className="text-line" aria-hidden="true">/</span> : null}
           </Fragment>
         );
       })}

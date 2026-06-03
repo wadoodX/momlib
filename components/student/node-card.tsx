@@ -60,10 +60,11 @@ export function NodeCard({
           {status ? (
             <span
               className={cn(
-                "ml-auto inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide",
-                status === "Core" ? "border-gold/40 bg-paper-soft text-gold" : "border-line bg-paper-soft text-muted",
+                "ml-auto inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.2em]",
+                status === "Core" ? "text-gold" : "text-muted",
               )}
             >
+              <span aria-hidden>&#9670;</span>
               {status}
             </span>
           ) : null}

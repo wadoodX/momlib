@@ -21,9 +21,7 @@ function ResultRow({ href, title, trail, draft }: { href: string; title: string;
         {trail ? <p className="mt-0.5 truncate text-xs uppercase tracking-[0.15em] text-muted">{trail}</p> : null}
       </div>
       {draft ? (
-        <span className="shrink-0 rounded-full bg-paper-soft px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
-          Draft
-        </span>
+        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Draft</span>
       ) : null}
     </Link>
   );

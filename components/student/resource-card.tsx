@@ -19,12 +19,12 @@ export function ResourceCard({ resource }: ResourceCardProps) {
             href={resource.href}
             target="_blank"
             rel="noreferrer"
-            className="rounded-full bg-sage px-4 py-2 text-sm font-semibold text-paper hover:bg-sage-deep"
+            className="rounded-md bg-sage px-4 py-2 text-sm font-semibold text-paper hover:bg-sage-deep"
           >
             {preview.type === "gamma" ? "Open Gamma" : "Open"}
           </a>
         ) : (
-          <span className="rounded-full border border-line px-4 py-2 text-sm text-muted">Unavailable</span>
+          <span className="rounded-md border border-line px-4 py-2 text-sm text-muted">Unavailable</span>
         )}
       </div>
 
@@ -59,7 +59,7 @@ function ResourcePreview({ resource, preview }: { resource: ResourceLink; previe
           href={resource.href ?? "#"}
           target="_blank"
           rel="noreferrer"
-          className="mt-4 inline-flex rounded-full bg-sage px-4 py-2 text-sm font-semibold text-paper hover:bg-sage-deep"
+          className="mt-4 inline-flex rounded-md bg-sage px-4 py-2 text-sm font-semibold text-paper hover:bg-sage-deep"
         >
           Open presentation
         </a>

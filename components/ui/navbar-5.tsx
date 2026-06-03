@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MenuIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Sheet,
   SheetContent,
@@ -55,17 +56,20 @@ export const Navbar5 = () => {
             >
               Sign in
             </Link>
+            <ThemeToggle />
             <Button asChild>
               <Link href="/pricing">Go Pro</Link>
             </Button>
           </div>
 
-          <Sheet>
-            <SheetTrigger asChild className="lg:hidden">
-              <Button variant="outline" size="icon">
-                <MenuIcon className="h-4 w-4" />
-              </Button>
-            </SheetTrigger>
+          <div className="flex items-center gap-2 lg:hidden">
+            <ThemeToggle />
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MenuIcon className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
             <SheetContent side="top" className="max-h-screen overflow-auto">
               <SheetHeader>
                 <SheetTitle>
@@ -94,7 +98,8 @@ export const Navbar5 = () => {
                 </Button>
               </div>
             </SheetContent>
-          </Sheet>
+            </Sheet>
+          </div>
         </nav>
       </div>
     </section>

@@ -78,7 +78,7 @@ export function ResourceForm({ chapterId }: { chapterId: string }) {
               name="file"
               type="file"
               accept=".pdf,.ppt,.pptx,.doc,.docx,image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-              className="mt-1.5 w-full rounded-xl border border-line bg-paper-soft px-3 py-2.5 text-sm text-ink outline-none transition focus:border-sage focus-visible:ring-2 focus-visible:ring-sage file:mr-3 file:rounded-full file:border-0 file:bg-sage file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-paper"
+              className="mt-1.5 w-full rounded-xl border border-line bg-paper-soft px-3 py-2.5 text-sm text-ink outline-none transition focus:border-sage focus-visible:ring-2 focus-visible:ring-sage file:mr-3 file:rounded-md file:border-0 file:bg-sage file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-paper"
             />
           </label>
         ) : (
@@ -99,7 +99,7 @@ export function ResourceForm({ chapterId }: { chapterId: string }) {
           Publish immediately
         </label>
 
-        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
         <button
           type="submit"
