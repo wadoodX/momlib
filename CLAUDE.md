@@ -79,7 +79,8 @@ manages light/dark/system and `ThemeSync` persists it to `profiles.theme`.
   shell (`components/student/page-shell.tsx`) is full-width (no max-width cap).
 - **Migrations** in `supabase/migrations/` must be applied in filename order (dashboard SQL editor
   or `supabase db push`). Until `…_add_profile_theme.sql` is applied the profile query fails and
-  **every user is treated as a student**. Run `gen:types` after schema changes.
+  `requireUser()` **throws on every page** (it no longer silently downgrades to student — apply
+  migrations first). Run `gen:types` after schema changes.
 - `created_by` columns default to `auth.uid()` and are `NOT NULL` — when inserting over a service
   connection (e.g. MCP) you must set them explicitly.
 - **Deploying:** add the `R2_*` vars to the hosting environment too, or production silently falls
