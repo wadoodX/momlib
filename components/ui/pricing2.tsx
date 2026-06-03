@@ -95,6 +95,7 @@ const Pricing2 = ({
             <Switch
               checked={isYearly}
               onCheckedChange={() => setIsYearly(!isYearly)}
+              aria-label="Toggle yearly billing"
             />
             Yearly
           </div>

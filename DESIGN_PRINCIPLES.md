@@ -26,7 +26,8 @@ Defined in `app/globals.css` under `@theme` (use as Tailwind classes: `bg-paper`
 | `gold` | `#BF9F53` | Ornaments, brand dot, sparing emphasis |
 
 - `ink`/`muted` on `paper` exceed WCAG AA for text. Gold is decorative only — never body text.
-- The signed-in app is still dark (Tailwind `stone-*`); it will migrate to these tokens later.
+- The whole app (landing + signed-in) uses these parchment tokens; light/dark is driven by the
+  `.dark` class redefining the CSS variables, so don't hardcode hex or add `dark:` variants.
 
 ## Typography
 

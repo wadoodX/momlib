@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -77,6 +78,7 @@ export const Navbar5 = () => {
                     Nibras<span className="text-gold">.</span>
                   </Link>
                 </SheetTitle>
+                <SheetDescription className="sr-only">Site navigation</SheetDescription>
               </SheetHeader>
               <div className="flex flex-col gap-6 p-4">
                 {links.map((link) =>

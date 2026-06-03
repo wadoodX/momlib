@@ -27,7 +27,15 @@ export async function uploadResource(supabase: SupabaseClient, key: string, file
   if (error) throw new Error(error.message);
 }
 
-/** A short-lived signed URL for a stored file, or null if one can't be produced. */
+/**
+ * A short-lived signed URL for a stored file, or null if one can't be produced.
+ *
+ * AUTHORIZATION INVARIANT: the R2 backend has no RLS — it signs whatever key it's
+ * given. So callers MUST only pass a `key` for a resource already authorized by a
+ * published-chain-filtered query (the Supabase-Storage fallback is double-checked
+ * by storage RLS, but R2 is not). Today the only callers are addResourceHref in
+ * lib/db/content.ts, which runs on rows returned by such queries.
+ */
 export async function signedResourceUrl(
   supabase: SupabaseClient,
   key: string,

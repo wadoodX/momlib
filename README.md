@@ -80,8 +80,8 @@ the Supabase dashboard **SQL Editor** or the CLI (`supabase db push`):
 - `…_harden_chapter_views_published_chain.sql` — view writes require a fully-published chapter chain
 - `…_admin_resource_type_breakdown.sql` — grouped resource-count RPC for the admin dashboard
 
-> ⚠️ Until `…_add_profile_theme.sql` is applied, the profile query fails and
-> **every user is treated as a student** (admins lose access). Apply migrations first.
+> ⚠️ Until `…_add_profile_theme.sql` is applied, the profile query fails and `requireUser()`
+> **throws on every page** (admins are no longer silently downgraded to students). Apply migrations first.
 
 ## Roles
 

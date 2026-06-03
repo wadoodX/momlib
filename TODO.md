@@ -19,6 +19,7 @@ Pre-launch checklist and tracked follow-ups. **Nothing here blocks local develop
   Resend bump if a big same-day enrollment hits the 100/day cap.)
 - [ ] **Set `NEXT_PUBLIC_SITE_URL`** to your real domain (hosting env + `.env.local`). Defaults to
   the placeholder `https://nibras.app`; used by metadata, `sitemap.xml`, `robots.txt`, OG image.
+- [ ] **Enable leaked-password protection** in Supabase → Auth (HaveIBeenPwned check). Currently off.
 
 ### Content / product
 - [ ] **Add real content.** The library currently has only **1 chapter / 1 resource** across 48
@@ -32,15 +33,25 @@ Pre-launch checklist and tracked follow-ups. **Nothing here blocks local develop
 
 ## Optional / nice-to-have (not blocking)
 
-- [ ] **Harden `Reveal`/`Hero` to default to visible** (animation as progressive enhancement).
-  Today the whole site animates in from `opacity:0` via JS, so any JS-load failure leaves the page
-  blank — this was the root cause of the "blank page when opened via the LAN IP" confusion (now
-  worked around with `allowedDevOrigins`).
+- [x] **Harden `Reveal`/`Hero` to default to visible** — **done** (2026-06-03). `Reveal` now uses an
+  IntersectionObserver that adds a CSS `.reveal--in` class (content visible by default); `Hero` uses
+  the pure-CSS `.hero-rise` entrance and is now a server component (LCP `<h1>` ships as static HTML).
+  `motion` dependency removed (lantern uses a local `matchMedia` reduced-motion hook). Verified: SSR
+  HTML went from 26 content `opacity:0` styles → 0, so a JS failure no longer blanks the page.
+- [ ] **Reconcile Supabase migration history** (low urgency — live schema is correct and all 14
+  migrations are idempotent, so a fresh `supabase db push` is safe). The remote
+  `schema_migrations` table tracks only a few migrations under MCP-generated timestamps that differ
+  from the repo filenames. To make local files the source of truth: `supabase link`, then
+  `supabase migration list` (shows the diff), then `supabase migration repair --status applied
+  <version>` for each repo migration (and `--status reverted <version>` for stale remote-only rows).
 - [ ] **CI coverage reporting** (`@vitest/coverage-v8` + threshold). Low value while only
   helpers/guards are tested.
 - [ ] **`reorder` single-RPC atomicity** — currently N parallel updates; partial failure now
   surfaces an error but isn't transactional (`lib/admin/studio-actions.ts`).
 - [ ] **Eyeball the de-pill visual changes** in the running app (chips → tracked text, etc.).
+- [ ] **Monitor 2 moderate npm advisories** (transitive `postcss` via `next`, build-time only). Not
+  fixable without downgrading Next — do **not** `npm audit fix --force`; clear when a Next 16.x patch
+  bumps its vendored `postcss`.
 
 **Deliberately skipped:** keep `public/models/lantern.glb` (gitignored local source asset — never
 deploys); keep `…_set_resource_upload_limit.sql` (redundant no-op, but already applied — removing

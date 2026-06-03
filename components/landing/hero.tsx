@@ -1,23 +1,11 @@
-"use client";
-
 import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
 import { Navbar5 } from "@/components/ui/navbar-5";
 
-const ease = [0.21, 0.47, 0.32, 0.98] as const;
-
+// On-load fade+rise is pure CSS (`.hero-rise` in globals.css) with a per-element
+// stagger via inline animation-delay — so the content (incl. the LCP <h1>) ships
+// as static, visible SSR HTML and never depends on client JS to appear. The H1
+// gets an early delay to keep LCP tight. prefers-reduced-motion is honored in CSS.
 export function Hero() {
-  const reduce = useReducedMotion();
-
-  const rise = (delay: number) =>
-    reduce
-      ? { initial: false as const, animate: { opacity: 1, y: 0 } }
-      : {
-          initial: { opacity: 0, y: 18 },
-          animate: { opacity: 1, y: 0 },
-          transition: { duration: 0.8, delay, ease },
-        };
-
   return (
     <section className="relative isolate flex min-h-[92vh] flex-col overflow-hidden bg-transparent text-ink">
       {/* soft corner glows (the lanterns themselves are the page-wide backdrop) */}
@@ -33,23 +21,26 @@ export function Hero() {
       </div>
 
       <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-6 pb-24 pt-12 text-center">
-        <motion.p {...rise(0.05)} className="text-xs font-semibold uppercase tracking-[0.35em] text-gold">
+        <p
+          style={{ animationDelay: "0.04s" }}
+          className="hero-rise text-xs font-semibold uppercase tracking-[0.35em] text-gold"
+        >
           The digital library for Islamic studies
-        </motion.p>
+        </p>
 
-        <motion.h1
-          {...rise(0.12)}
-          className="font-display mt-6 max-w-3xl text-[clamp(2.5rem,6.4vw,4.75rem)] font-semibold leading-[1.05] tracking-[-0.02em] text-ink"
+        <h1
+          style={{ animationDelay: "0.1s" }}
+          className="hero-rise font-display mt-6 max-w-3xl text-[clamp(2.5rem,6.4vw,4.75rem)] font-semibold leading-[1.05] tracking-[-0.02em] text-ink"
         >
           Every lesson, lit and in its place.
-        </motion.h1>
+        </h1>
 
-        <motion.p {...rise(0.24)} className="mt-6 max-w-2xl text-lg leading-8 text-muted">
+        <p style={{ animationDelay: "0.2s" }} className="hero-rise mt-6 max-w-2xl text-lg leading-8 text-muted">
           Nibras gives teachers a calm home to publish their courses — and gives students one
           searchable place to browse, preview, and pick up every note, file, and recording.
-        </motion.p>
+        </p>
 
-        <motion.div {...rise(0.36)} className="mt-9 flex flex-wrap items-center justify-center gap-4">
+        <div style={{ animationDelay: "0.3s" }} className="hero-rise mt-9 flex flex-wrap items-center justify-center gap-4">
           <Link
             href="/pricing"
             className="inline-flex items-center rounded-md bg-sage px-7 py-3.5 text-sm font-semibold text-paper shadow-lg shadow-sage/20 transition-colors hover:bg-sage-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -62,11 +53,11 @@ export function Hero() {
           >
             Start free
           </Link>
-        </motion.div>
+        </div>
 
-        <motion.p {...rise(0.46)} className="mt-5 text-xs text-muted">
+        <p style={{ animationDelay: "0.38s" }} className="hero-rise mt-5 text-xs text-muted">
           Free for students · Pro from <span className="font-semibold text-ink">$4/mo</span>
-        </motion.p>
+        </p>
       </div>
     </section>
   );
