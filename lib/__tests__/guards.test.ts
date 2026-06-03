@@ -88,4 +88,11 @@ describe("requireAdmin", () => {
     const res = await requireAdmin();
     expect(res.profile?.role).toBe("admin");
   });
+
+  it("throws (not redirects) when the profile row is missing — no silent admin lockout", async () => {
+    mocks.state.profile = null;
+    mocks.state.profileError = null;
+    const { requireAdmin } = await loadGuards();
+    await expect(requireAdmin()).rejects.toThrow(/No profile row/);
+  });
 });

@@ -32,6 +32,25 @@ describe("uniqueSlug", () => {
   it("appends -2, -3 on collision", async () => {
     expect(await uniqueSlug(fakeClient([{ slug: "fiqh" }, { slug: "fiqh-2" }]), "courses", "Fiqh")).toBe("fiqh-3");
   });
+  it("queries only the exact root or numbered variants (no like-prefix over-match)", async () => {
+    // The DB does the filtering, so assert the correct PostgREST filter is sent:
+    // `intro` must not be treated as taken by an existing `introduction`.
+    let orArg = "";
+    const recording = {
+      from: () => {
+        const b: Record<string, unknown> = {};
+        for (const m of ["select", "like", "order", "limit", "eq"]) b[m] = () => b;
+        b.or = (f: string) => {
+          orArg = f;
+          return b;
+        };
+        (b as { then: unknown }).then = (resolve: (v: { data: never[] }) => void) => resolve({ data: [] });
+        return b;
+      },
+    } as never;
+    await uniqueSlug(recording, "courses", "Intro");
+    expect(orArg).toBe("slug.eq.intro,slug.like.intro-*");
+  });
 });
 
 describe("nextOrderIndex", () => {
