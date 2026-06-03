@@ -39,6 +39,14 @@ export const requireUser = cache(async function requireUser() {
     throw new Error(`Failed to load profile for ${user.id}: ${error.message}`);
   }
 
+  // The handle_new_user trigger guarantees every auth user has a profile row, so
+  // a missing profile is an anomaly (failed trigger, manual delete) — not a
+  // "treat as student" signal. Fail loud here too, otherwise requireAdmin() would
+  // silently lock the sole admin out of /admin via the null-profile path.
+  if (!profile) {
+    throw new Error(`No profile row found for ${user.id}`);
+  }
+
   return {
     user,
     profile,

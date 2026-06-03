@@ -62,7 +62,10 @@ export async function signUp(formData: FormData) {
   });
 
   if (error) {
-    fail(error.message);
+    // Don't reflect the raw Supabase error (e.g. "User already registered") back
+    // to the client — that enables account enumeration. Log it, show generic copy.
+    console.error(`Sign-up failed for ${email}: ${error.message}`);
+    fail("We couldn't create your account. Please check your details and try again.");
   }
 
   if (!data.session) {

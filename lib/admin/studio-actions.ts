@@ -73,14 +73,28 @@ export async function quickAdd(
 /** Persist a new sibling order by writing each row's order_index to its array index. */
 export async function reorder(kind: ReorderKind, orderedIds: string[]): Promise<void> {
   await requireAdmin();
+
+  // Guard the trusted client input: ignore empties and cap the fan-out so a
+  // malformed payload can't kick off thousands of UPDATEs.
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
+  if (orderedIds.length > 1000) {
+    throw new Error("Too many items to reorder at once.");
+  }
+
   const supabase = await createClient();
 
   const table =
     kind === "course" ? "courses" : kind === "subject" ? "subjects" : kind === "chapter" ? "chapters" : "resources";
 
-  await Promise.all(
+  // Don't swallow per-row failures: if any update errors, surface it so the UI
+  // re-syncs from the server instead of showing a stale "saved" order.
+  const results = await Promise.all(
     orderedIds.map((id, index) => supabase.from(table).update({ order_index: index }).eq("id", id)),
   );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) {
+    throw new Error(`Failed to reorder ${kind}: ${failed.error.message}`);
+  }
 
   revalidatePath("/admin");
 }

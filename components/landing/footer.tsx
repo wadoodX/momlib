@@ -25,7 +25,7 @@ export function Footer() {
         </div>
 
         <p className="mt-10 border-t border-line pt-6 text-center text-xs text-muted sm:text-left">
-          © {2026} Nibras. A quiet library for Alimiyyah and Islamic studies.
+          © {new Date().getFullYear()} Nibras. A quiet library for Alimiyyah and Islamic studies.
         </p>
       </div>
     </footer>

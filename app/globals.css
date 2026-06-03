@@ -38,27 +38,11 @@
   --color-border: #dcd4c4;
   --color-input: #dcd4c4;
   --color-ring: #7c9468;
-
-  --animate-accordion-down: accordion-down 0.2s ease-out;
-  --animate-accordion-up: accordion-up 0.2s ease-out;
-}
-
-@keyframes accordion-down {
-  from {
-    height: 0;
-  }
-  to {
-    height: var(--radix-accordion-content-height);
-  }
-}
-
-@keyframes accordion-up {
-  from {
-    height: var(--radix-accordion-content-height);
-  }
-  to {
-    height: 0;
-  }
+  /* Warm terracotta for destructive actions/errors — fits the parchment palette
+     and clears WCAG AA as text on paper/card. Used as `text-destructive`,
+     `border-destructive`, and `bg-destructive` + `text-destructive-foreground`. */
+  --color-destructive: #9e3b2e;
+  --color-destructive-foreground: #f6f3ea;
 }
 
 :root {
@@ -103,6 +87,8 @@
   --color-border: #38423a;
   --color-input: #38423a;
   --color-ring: #8fab78;
+  --color-destructive: #e0816a;
+  --color-destructive-foreground: #1a120c;
 }
 
 * {
@@ -144,47 +130,9 @@ body {
   );
 }
 
-/* Slow drifting aurora used as the static/reduced-motion hero backdrop */
-@keyframes aurora-drift {
-  0% {
-    transform: translate3d(-6%, -3%, 0) rotate(0deg) scale(1.1);
-  }
-  50% {
-    transform: translate3d(6%, 4%, 0) rotate(8deg) scale(1.25);
-  }
-  100% {
-    transform: translate3d(-6%, -3%, 0) rotate(0deg) scale(1.1);
-  }
-}
-
-.aurora {
-  background:
-    radial-gradient(40% 55% at 22% 28%, rgba(16, 185, 129, 0.30), transparent 70%),
-    radial-gradient(45% 50% at 80% 30%, rgba(45, 212, 191, 0.20), transparent 70%),
-    radial-gradient(55% 60% at 55% 85%, rgba(5, 150, 105, 0.22), transparent 75%);
-  filter: blur(40px);
-  animation: aurora-drift 22s ease-in-out infinite;
-  will-change: transform;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .aurora {
-    animation: none;
-  }
-}
-
 /* Fine grain overlay for atmosphere/depth */
 .grain {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
 }
 
 /* Staggered entrance for card grids (courses / subjects). `both` keeps the card

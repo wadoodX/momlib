@@ -1,0 +1,6 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="7" fill="#28332b" />
+  <!-- Nibras = lamp/light: a gold flame on deep ink -->
+  <path d="M16 5C9 13 9 18 12 22c2 2.6 6 2.6 8 0 3-4 3-9-4-17z" fill="#bf9f53" />
+  <circle cx="16" cy="18.5" r="2.4" fill="#28332b" />
+</svg>

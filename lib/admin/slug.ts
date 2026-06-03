@@ -26,7 +26,10 @@ export async function uniqueSlug(
 ): Promise<string> {
   const root = slugify(base);
 
-  let query = supabase.from(table).select("slug").like("slug", `${root}%`);
+  // Match only the exact root or its numbered variants (root-2, root-3, …) so a
+  // longer sibling slug (e.g. "introduction" when root is "intro") doesn't get
+  // counted as taken. slugify() limits root to [a-z0-9-], safe in an or() filter.
+  let query = supabase.from(table).select("slug").or(`slug.eq.${root},slug.like.${root}-*`);
   if (scope) {
     // `table` is a union, so eq()'s column type narrows to the shared columns;
     // the scoped FK column is valid for the concrete table at each call site.

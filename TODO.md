@@ -1,51 +1,74 @@
-# TODO — before launch
+# TODO — Nibras
 
-Pre-launch checklist for the Nibras portal. **None of these block local development** —
-they only matter before real students start using it.
+Pre-launch checklist and tracked follow-ups. **Nothing here blocks local development.**
 
-## 1. Production environment variables (when you deploy)
+---
 
-Add these to your host's project env settings (Vercel/etc.). **Without the `R2_*` vars,
-file uploads silently fall back to Supabase Storage instead of Cloudflare R2 — no error,
-just files in the wrong place.**
+## Before real students sign up
 
-- [ ] `R2_ACCOUNT_ID`
-- [ ] `R2_ACCESS_KEY_ID`
-- [ ] `R2_SECRET_ACCESS_KEY`
-- [ ] `R2_BUCKET=momlib-resources`
-- [ ] `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the usual Supabase pair)
+### Deploy / infrastructure
+- [ ] **Production env vars** (host project settings — Vercel/etc.):
+  `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET=momlib-resources`,
+  plus `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+  *Without the `R2_*` vars, uploads silently fall back to Supabase Storage — no error, wrong place.*
+- [ ] **Cloudflare R2 billing/usage alert** (dashboard → Notifications, low threshold).
+  ~$0/mo expected (10 GB free, no egress); peace of mind only.
+- [ ] **Auth email via SMTP** — Supabase's built-in email is rate-limited (a few/hour). Create a
+  **Resend** account (free 3k/mo, 100/day), verify your domain, create SMTP creds, paste
+  host/port/user/pass + sender into **Supabase → Auth → SMTP Settings**. (Brevo 300/day or a paid
+  Resend bump if a big same-day enrollment hits the 100/day cap.)
+- [ ] **Set `NEXT_PUBLIC_SITE_URL`** to your real domain (hosting env + `.env.local`). Defaults to
+  the placeholder `https://nibras.app`; used by metadata, `sitemap.xml`, `robots.txt`, OG image.
 
-## 2. Cloudflare R2 billing alert
-
-- [ ] Cloudflare dashboard → **Notifications** → add a billing/usage alert with a low
-  threshold. Expected cost is ~**$0/mo** (10 GB free, no egress fees); this is just peace of mind.
-
-## 3. Email for signups & password resets
-
-Supabase's built-in auth email is rate-limited (a few per hour) — fine for testing, not for
-real enrollment. Before real signups:
-
-- [ ] Create a **Resend** account (free: 3,000 emails/mo, 100/day).
-- [ ] Add + verify your domain in Resend (add the DNS records it gives you).
-- [ ] Create SMTP credentials in Resend.
-- [ ] Paste host / port / user / pass + sender (e.g. `noreply@yourdomain`) into
-  **Supabase → Auth → SMTP Settings**.
-- [ ] Heads-up: the 100/day cap can throttle a big same-day enrollment — Brevo's free
-  300/day or a one-month paid Resend bump are fallbacks.
-
-## 4. Merge the build to `main`
-
-- [x] Open/merge the PR (`main ← claude/portal-build`) — **done** (PR #7 merged).
-
-## 5. Landing page & SEO follow-ups
-
-- [ ] **Set `NEXT_PUBLIC_SITE_URL`** to your real domain in the hosting env (and `.env.local`).
-  It defaults to the placeholder `https://nibras.app` and is used by the page metadata,
-  `sitemap.xml`, `robots.txt`, and the Open Graph share image — so search engines and link
-  previews point at the right domain.
-
+### Content / product
+- [ ] **Add real content.** The library currently has only **1 chapter / 1 resource** across 48
+  published subjects, so most subjects render empty until chapters are added.
 - [ ] **Replace placeholder testimonials & stats** in `components/landing/testimonials.tsx` with
-  real quotes, names, institutions, and numbers before the site is public.
-- [ ] **Wire real Stripe (or similar) checkout** so the "Go Pro" CTA becomes an actual purchase.
-  Today it routes to `/login?mode=signup` (create account; upsell later) — no billing exists yet.
-  Update the homepage + `components/ui/pricing2.tsx` CTAs once checkout is live.
+  real quotes/names/institutions/numbers before the site is public.
+- [ ] **Wire real Stripe (or similar) checkout** for "Go Pro" (homepage + `components/ui/pricing2.tsx`).
+  Today it routes to `/login?mode=signup` — no billing exists yet.
+
+---
+
+## Optional / nice-to-have (not blocking)
+
+- [ ] **Harden `Reveal`/`Hero` to default to visible** (animation as progressive enhancement).
+  Today the whole site animates in from `opacity:0` via JS, so any JS-load failure leaves the page
+  blank — this was the root cause of the "blank page when opened via the LAN IP" confusion (now
+  worked around with `allowedDevOrigins`).
+- [ ] **CI coverage reporting** (`@vitest/coverage-v8` + threshold). Low value while only
+  helpers/guards are tested.
+- [ ] **`reorder` single-RPC atomicity** — currently N parallel updates; partial failure now
+  surfaces an error but isn't transactional (`lib/admin/studio-actions.ts`).
+- [ ] **Eyeball the de-pill visual changes** in the running app (chips → tracked text, etc.).
+
+**Deliberately skipped:** keep `public/models/lantern.glb` (gitignored local source asset — never
+deploys); keep `…_set_resource_upload_limit.sql` (redundant no-op, but already applied — removing
+an applied migration is more risk than the cosmetic gain).
+
+---
+
+## Done
+
+- [x] **Merge** — PR #7 merged (`main ← claude/portal-build`).
+
+### Code-review remediation — 2026-06-03 multi-agent review (all addressed · 59 tests green)
+- **Security / RLS:** `chapter_views` writes now require a fully-published chapter chain
+  (migration applied to live DB); all `/admin/*` routes guarded at `app/admin/layout.tsx`;
+  `requireUser()` throws on a missing profile; +12 security tests (`guards.test.ts`,
+  `content-published.test.ts`).
+- **Backend:** `getResourceTypeBreakdown` → one grouped RPC (`admin_resource_type_breakdown`,
+  applied live); `reorder` capped + error-surfacing; slug `like`-prefix over-match fixed.
+- **Theming / UI:** added `--color-destructive` token (fixes `button.tsx`'s undefined classes +
+  all off-theme reds); de-pilled chips/buttons per `DESIGN_PRINCIPLES.md`; favicon (`app/icon.svg`);
+  marketing-page theme toggle; `error.tsx` now logs.
+- **Tooling:** pinned all `latest` deps + dropped 2 unused Radix deps; CI `typecheck` step +
+  concurrency cancel; `engines.node` + `.nvmrc`; README migration list; removed dead
+  components/CSS.
+- **Dev environment:** added `allowedDevOrigins` so the dev server is reachable from the LAN IP
+  (`next.config.ts`).
+
+### Investigated — NOT a bug (do not re-raise)
+- **`proxy.ts` is correct, not "inactive middleware."** Next.js 16 renamed `middleware.ts` →
+  `proxy.ts` (export `proxy`); the build registers it (`ƒ Proxy (Middleware)`) and session refresh
+  works via `updateSession()` → `supabase.auth.getUser()`. **Do not rename it to `middleware.ts`.**

@@ -11,10 +11,10 @@ type Pointer = React.RefObject<{ x: number; y: number }>;
 
 const MODEL_URL = "/models/lantern-opt.glb";
 
-// Warm accents per theme (glow halo, motes, flame-light color).
-const PALETTE: Record<Theme, { flame: string; spark: string; glow: string }> = {
-  light: { flame: "#ffd591", spark: "#bf9f53", glow: "#e3b667" },
-  dark: { flame: "#ffe0a3", spark: "#cdb069", glow: "#f0c46a" },
+// Warm accents per theme (motes + flame-light color).
+const PALETTE: Record<Theme, { flame: string; spark: string }> = {
+  light: { flame: "#ffd591", spark: "#bf9f53" },
+  dark: { flame: "#ffe0a3", spark: "#cdb069" },
 };
 
 // Curated layout — start clustered toward the sides + depth (central band clear

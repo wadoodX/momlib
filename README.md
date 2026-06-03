@@ -75,6 +75,10 @@ the Supabase dashboard **SQL Editor** or the CLI (`supabase db push`):
 - `…_add_profile_theme.sql` — **required**; the app selects `profiles.theme`
 - `…_admin_engagement.sql` — admin analytics RPCs (SECURITY DEFINER, `is_admin()`-guarded)
 - `…_add_course_subject_customization.sql` — `color` / `icon` columns
+- `…_harden_function_security.sql` — pins `search_path`, revokes `anon`/`public` on functions
+- `…_add_chapter_views_chapter_idx.sql` — FK index for `chapter_views.chapter_id`
+- `…_harden_chapter_views_published_chain.sql` — view writes require a fully-published chapter chain
+- `…_admin_resource_type_breakdown.sql` — grouped resource-count RPC for the admin dashboard
 
 > ⚠️ Until `…_add_profile_theme.sql` is applied, the profile query fails and
 > **every user is treated as a student** (admins lose access). Apply migrations first.

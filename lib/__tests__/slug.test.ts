@@ -13,10 +13,10 @@ describe("slugify", () => {
 });
 
 /** Minimal fake Supabase query builder for the slug/order helpers, which only
- *  use .from().select().like()/.order().limit()/.eq() then await the result. */
+ *  use .from().select().or()/.order().limit()/.eq() then await the result. */
 function fakeClient(rows: Record<string, unknown>[]) {
   const builder: Record<string, unknown> = {};
-  for (const m of ["select", "like", "order", "limit", "eq"]) {
+  for (const m of ["select", "or", "like", "order", "limit", "eq"]) {
     builder[m] = () => builder;
   }
   // awaiting the builder resolves to { data }

@@ -1,8 +1,15 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 
-export default function Error({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  // Surface the failure (incl. digest) so production errors leave a trace instead
+  // of being silently swallowed by the boundary.
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-paper px-6 text-center text-ink">
       <p className="text-sm font-medium uppercase tracking-[0.25em] text-gold">Something went wrong</p>

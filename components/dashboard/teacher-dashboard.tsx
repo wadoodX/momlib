@@ -149,13 +149,13 @@ export async function TeacherDashboard() {
           <h2 className="text-xl font-semibold text-ink">Recently added resources</h2>
 
           {/* resource-type breakdown strip */}
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
             {(Object.keys(TYPE_META) as ResourceType[]).map((type) => {
               const { label, icon: Icon } = TYPE_META[type];
               return (
                 <span
                   key={type}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-3 py-1.5 text-xs text-muted"
+                  className="inline-flex items-center gap-1.5 text-xs text-muted"
                 >
                   <Icon className="size-3.5 text-sage" />
                   <span className="font-semibold text-ink">{typeBreakdown[type]}</span>

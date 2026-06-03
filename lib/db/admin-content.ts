@@ -281,16 +281,22 @@ export async function getResourceTypeBreakdown(): Promise<Record<ResourceType, n
   await requireAdmin();
   const supabase = await createClient();
 
-  const counts = await Promise.all(
-    RESOURCE_TYPES.map((type) =>
-      supabase.from("resources").select("*", { count: "exact", head: true }).eq("resource_type", type),
-    ),
-  );
+  // One grouped round trip (admin_resource_type_breakdown) instead of six
+  // per-type count queries.
+  const { data, error } = await supabase.rpc("admin_resource_type_breakdown");
+  if (error) throw new Error(error.message);
 
-  return RESOURCE_TYPES.reduce((acc, type, i) => {
-    acc[type] = counts[i].count ?? 0;
+  const breakdown = RESOURCE_TYPES.reduce((acc, type) => {
+    acc[type] = 0;
     return acc;
   }, {} as Record<ResourceType, number>);
+
+  for (const row of data ?? []) {
+    const type = row.resource_type as ResourceType;
+    if (type in breakdown) breakdown[type] = row.count ?? 0;
+  }
+
+  return breakdown;
 }
 
 export type TopViewedChapter = {
