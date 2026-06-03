@@ -6,11 +6,18 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  arrayMove,
+  useSortable,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -137,7 +144,10 @@ export function DetailPane({ selected, onDeleted }: { selected: SelectedNode; on
 
 function ResourcesSection({ chapterId }: { chapterId: string }) {
   const [resources, setResources] = useState<Resource[] | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   // DetailPane is keyed per chapter in the parent, so this mounts fresh with
   // resources === null (loading) and just fetches once.
