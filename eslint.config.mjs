@@ -5,5 +5,7 @@ import nextTypescript from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextVitals,
   ...nextTypescript,
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  // `.agents/` and `.claude/` hold vendored agent-skill bundles (third-party
+  // scripts), not project source — keep them out of the project lint.
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", ".agents/**", ".claude/**"]),
 ]);
