@@ -64,15 +64,24 @@ export function PageSkeleton({ variant = "grid" }: { variant?: SkeletonVariant }
   return (
     <main className="min-h-screen bg-paper px-6 py-10 text-ink lg:px-10 xl:px-12 2xl:px-16">
       <section className={variant === "form" ? "mx-auto w-full max-w-3xl" : "w-full"}>
-        {/* Nav placeholder — mirrors NavBar's 3-column grid (no pulse: it reads as chrome). */}
-        <div className="mb-10 grid grid-cols-3 items-center gap-4">
-          <Bar className="h-4 w-20 justify-self-start" />
-          <div className="hidden justify-center gap-6 sm:flex">
+        {/* Nav placeholder — mirrors NavBar (flex row on phones, 3-col grid on sm+;
+            with a mobile-only links row). No pulse: it reads as chrome. */}
+        <div className="mb-10">
+          <div className="flex items-center justify-between gap-4 sm:grid sm:grid-cols-3">
+            <Bar className="h-4 w-20 sm:justify-self-start" />
+            <div className="hidden justify-center gap-6 sm:flex">
+              <Bar className="h-4 w-16" />
+              <Bar className="h-4 w-16" />
+              <Bar className="h-4 w-16" />
+            </div>
+            <div className="size-9 rounded-full bg-line/50 sm:justify-self-end" />
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2 sm:hidden">
+            <Bar className="h-4 w-16" />
             <Bar className="h-4 w-16" />
             <Bar className="h-4 w-16" />
             <Bar className="h-4 w-16" />
           </div>
-          <div className="size-9 justify-self-end rounded-full bg-line/50" />
         </div>
 
         {/* Eyebrow + title + description, then the variant body — all gently pulsing. */}
