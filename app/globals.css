@@ -155,25 +155,6 @@ body {
   animation: card-rise 0.5s cubic-bezier(0.21, 0.47, 0.32, 0.98) both;
 }
 
-/* Scroll-triggered reveal (components/landing/reveal.tsx). Content is VISIBLE by
-   default — the hidden state lives only inside the keyframe, applied via the
-   JS-added `.reveal--in` class. So if client JS never runs (blocked/slow chunks),
-   nothing is stranded at opacity:0; you just lose the animation. */
-@keyframes reveal-rise {
-  from {
-    opacity: 0;
-    transform: translateY(var(--reveal-y, 24px));
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.reveal--in {
-  animation: reveal-rise 0.7s cubic-bezier(0.21, 0.47, 0.32, 0.98) var(--reveal-delay, 0s) both;
-}
-
 /* On-load staggered entrance for the hero (components/landing/hero.tsx). Pure CSS
    (no JS gate); per-element stagger via inline animation-delay. */
 @keyframes hero-rise {
@@ -193,7 +174,6 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .card-rise,
-  .reveal--in,
   .hero-rise {
     animation: none;
   }
