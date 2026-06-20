@@ -178,3 +178,18 @@ body {
     animation: none;
   }
 }
+
+/* Cross-fade between routes (next-view-transitions drives document.startViewTransition).
+   Both pages share bg-paper, so the root cross-fade is seamless with no color flash. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: cubic-bezier(0.21, 0.47, 0.32, 0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}

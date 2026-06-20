@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "next-view-transitions";
 import { BookOpen, Layers, FileText, Search, ArrowRight } from "lucide-react";
 import { getRecentlyViewedChapters, getStudentStats } from "@/lib/db/content";
 import { timeAgo } from "@/lib/format";

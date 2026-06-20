@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "next-view-transitions";
 import { requireUser } from "@/lib/auth/guards";
 import { searchPublishedResources, searchPublishedStructure } from "@/lib/db/content";
 import { searchAllResources, searchAllStructure } from "@/lib/db/admin-content";

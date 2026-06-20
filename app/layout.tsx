@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Montserrat, Inter, Amiri } from "next/font/google";
+import { ViewTransitions } from "next-view-transitions";
+import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -68,10 +70,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${arabic.variable}`} suppressHydrationWarning>
-      <body>
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
-    </html>
+    <ViewTransitions>
+      <html lang="en" className={`${display.variable} ${body.variable} ${arabic.variable}`} suppressHydrationWarning>
+        <body>
+          {/* Thin on-brand bar for the rare slow navigation; the cross-fade covers the fast case. */}
+          <NextTopLoader color="#cdb069" height={2} showSpinner={false} shadow={false} />
+          <ThemeProvider>{children}</ThemeProvider>
+        </body>
+      </html>
+    </ViewTransitions>
   );
 }

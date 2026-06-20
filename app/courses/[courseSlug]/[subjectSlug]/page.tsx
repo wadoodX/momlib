@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "next-view-transitions";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/guards";
 import { getPublishedChaptersForSubject, getPublishedCourseBySlug, getPublishedSubjectBySlug } from "@/lib/db/content";
