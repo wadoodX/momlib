@@ -59,6 +59,44 @@ an applied migration is more risk than the cosmetic gain).
 
 ---
 
+## Path to 10/10 (deferred — implement later)
+
+After three converging review rounds the codebase sits at ~A (9.0). The gap to 10/10 is **earned
+confidence + launch-readiness, not more nitpicks**. Ranked by leverage.
+
+### Tier 1 — prove the invariants (highest leverage)
+- [ ] **RLS integration tests against a real Postgres** (local Supabase / a throwaway branch, or
+  pgTAP). Seed an admin + a student and assert the ACTUAL DB behavior, not just query shapes:
+  - student gets empty/404 for an unpublished course/subject/chapter/resource (full chain);
+  - student CANNOT insert a `chapter_views` row for an unpublished chapter, but CAN for a published one;
+  - the admin RPCs (`admin_*`) raise for a student, return data for the admin;
+  - a student cannot change their own `role`; the single-admin unique index blocks a 2nd admin.
+- [ ] **Playwright E2E smoke suite** for flows nothing covers today: signup → dashboard; browse a
+  published chapter; admin create/publish content; AND a `javaScriptEnabled:false` test asserting the
+  hero `<h1>` + a dashboard card have `opacity:1` (locks in the round-2 blank-page fix).
+- [ ] **Test `duplicateNode` + rollback** (`lib/admin/studio-actions.ts`) — recursive course clone
+  with R2 file copy + best-effort rollback; the most complex untested code.
+
+### Tier 2 — production-grade
+- [ ] **Real error tracking** (Sentry or equivalent). Today `app/error.tsx` only `console.error`s —
+  prod failures are invisible. Wire client + server error reporting.
+- [ ] Run the E2E suite + a **coverage gate** in CI (see "CI coverage reporting" above).
+- [ ] (already tracked above) migration-history reconcile; the full "Before real students sign up"
+  checklist (R2 / `NEXT_PUBLIC_SITE_URL` / SMTP / leaked-password / Stripe); real content; replace
+  placeholder testimonials.
+
+### Tier 3 — polish (immaterial at current scale)
+- [ ] Perf advisors: wrap `auth.uid()` → `(select auth.uid())` in the `chapter_views` policy
+  (RLS init-plan); add an index on `created_by`; pause/lazy-load the lantern `useFrame` once scrolled
+  past the hero.
+- [ ] Formal a11y pass — axe + Lighthouse + a screen-reader run of the admin DnD.
+- [ ] Commit a `.env.example` (already allowed by `.gitignore`) for onboarding.
+
+> Stop-hedging line: the published-chain rule has an integration test running in CI, prod errors are
+> tracked, and the launch checklist is done. **Tier 1 ≈ 80% of the perceived gap.**
+
+---
+
 ## Done
 
 - [x] **Merge** — PR #7 merged (`main ← claude/portal-build`).

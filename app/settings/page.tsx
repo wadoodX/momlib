@@ -38,8 +38,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       title="Settings"
       description="Manage your profile, security, and how Nibras looks."
       role={role}
+      width="narrow"
     >
-      <div className="max-w-2xl space-y-8">
+      <div className="space-y-8">
         {message ? (
           <div className="rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3 text-sm text-ink">
             {message}
