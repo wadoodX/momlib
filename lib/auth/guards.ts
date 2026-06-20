@@ -15,16 +15,22 @@ export type Profile = {
 };
 
 // Wrapped in React cache() so multiple calls within a single request (e.g. a
-// page and its PageShell/AdminShell) dedupe to one getUser + profile read.
+// page and its PageShell/AdminShell) dedupe to one verify + profile read.
+//
+// Identity comes from getClaims(), which verifies the access-token JWT *locally*
+// against the project's asymmetric (ES256) signing key — no network round-trip to
+// the Auth server (unlike getUser()). That removes a per-navigation hop; the
+// signature + exp check makes the claims as trustworthy as a getUser() result.
 export const requireUser = cache(async function requireUser() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data, error: claimsError } = await supabase.auth.getClaims();
+  const claims = data?.claims;
 
-  if (!user) {
+  if (claimsError || !claims) {
     redirect("/login");
   }
+
+  const user = { id: claims.sub, email: claims.email };
 
   const { data: profile, error } = await supabase
     .from("profiles")

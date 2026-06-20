@@ -17,11 +17,20 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-// Minimal fake of the SSR Supabase client: auth.getUser() + the
-// from(profiles).select().eq().maybeSingle() chain that requireUser() uses.
+// Minimal fake of the SSR Supabase client: auth.getClaims() (local JWT verify)
+// + the from(profiles).select().eq().maybeSingle() chain that requireUser() uses.
+// getClaims() returns { data: { claims } } with the user id in `sub`; an
+// unauthenticated request yields { data: null }.
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
-    auth: { getUser: async () => ({ data: { user: mocks.state.user } }) },
+    auth: {
+      getClaims: async () => ({
+        data: mocks.state.user
+          ? { claims: { sub: mocks.state.user.id, email: mocks.state.user.email } }
+          : null,
+        error: null,
+      }),
+    },
     from: () => ({
       select: () => ({
         eq: () => ({

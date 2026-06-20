@@ -22,7 +22,9 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  // Verify the session locally (asymmetric JWT) instead of a network getUser()
+  // round-trip; this still drives the SSR cookie refresh via the setAll handler.
+  await supabase.auth.getClaims();
 
   return response;
 }
