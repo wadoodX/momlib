@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { signedResourceUrl } from "@/lib/storage/resources";
 import { queryTerms, titleMatches, rowMatchesQuery, ilikeOrFilters } from "@/lib/search-match";
@@ -75,7 +76,9 @@ export async function getPublishedCoursesWithCounts(): Promise<CourseWithCount[]
   }));
 }
 
-export async function getPublishedCourseBySlug(courseSlug: string): Promise<Course | null> {
+// cache()-wrapped so the subject layout + its index/chapter child pages dedupe
+// these reads to one query per request (they all resolve the same course/subject).
+export const getPublishedCourseBySlug = cache(async (courseSlug: string): Promise<Course | null> => {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -90,7 +93,7 @@ export async function getPublishedCourseBySlug(courseSlug: string): Promise<Cour
   }
 
   return data as Course | null;
-}
+});
 
 export async function getPublishedSubjectsForCourse(courseId: string): Promise<Subject[]> {
   const supabase = await createClient();
@@ -110,7 +113,7 @@ export async function getPublishedSubjectsForCourse(courseId: string): Promise<S
   return data as Subject[];
 }
 
-export async function getPublishedSubjectBySlug(courseId: string, subjectSlug: string): Promise<Subject | null> {
+export const getPublishedSubjectBySlug = cache(async (courseId: string, subjectSlug: string): Promise<Subject | null> => {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -126,9 +129,9 @@ export async function getPublishedSubjectBySlug(courseId: string, subjectSlug: s
   }
 
   return data as Subject | null;
-}
+});
 
-export async function getPublishedChaptersForSubject(subjectId: string): Promise<Chapter[]> {
+export const getPublishedChaptersForSubject = cache(async (subjectId: string): Promise<Chapter[]> => {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -144,7 +147,7 @@ export async function getPublishedChaptersForSubject(subjectId: string): Promise
   }
 
   return data as Chapter[];
-}
+});
 
 export async function getPublishedChapterBySlug(subjectId: string, chapterSlug: string): Promise<Chapter | null> {
   const supabase = await createClient();

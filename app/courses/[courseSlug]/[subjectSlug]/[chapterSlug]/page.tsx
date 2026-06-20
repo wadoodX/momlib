@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/auth/guards";
 import {
   getPublishedChapterBySlug,
   getPublishedCourseBySlug,
@@ -8,30 +7,30 @@ import {
   recordChapterView,
 } from "@/lib/db/content";
 import { EmptyState } from "@/components/student/empty-state";
-import { PageShell } from "@/components/student/page-shell";
 import { ResourceCard } from "@/components/student/resource-card";
 
 type ChapterPageProps = {
   params: Promise<{ courseSlug: string; subjectSlug: string; chapterSlug: string }>;
 };
 
+// The content pane inside the subject layout. The layout supplies the shell,
+// breadcrumbs, and chapter rail; this renders the selected chapter's heading and
+// resources. Auth is enforced by the layout's requireUser(); the course/subject
+// reads here are cache()-deduped with the layout's.
 export default async function ChapterPage({ params }: ChapterPageProps) {
-  const { profile } = await requireUser();
   const { courseSlug, subjectSlug, chapterSlug } = await params;
-  const course = await getPublishedCourseBySlug(courseSlug);
 
+  const course = await getPublishedCourseBySlug(courseSlug);
   if (!course) {
     notFound();
   }
 
   const subject = await getPublishedSubjectBySlug(course.id, subjectSlug);
-
   if (!subject) {
     notFound();
   }
 
   const chapter = await getPublishedChapterBySlug(subject.id, chapterSlug);
-
   if (!chapter) {
     notFound();
   }
@@ -42,20 +41,19 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
   await recordChapterView(chapter.id);
 
   return (
-    <PageShell
-      eyebrow={`${course.title} / ${subject.title}`}
-      title={chapter.title}
-      description={chapter.description}
-      role={profile?.role ?? "student"}
-      breadcrumbs={[
-        { label: "Courses", href: "/courses" },
-        { label: course.title, href: `/courses/${course.slug}` },
-        { label: subject.title, href: `/courses/${course.slug}/${subject.slug}` },
-        { label: chapter.title },
-      ]}
-    >
+    <article>
+      <header className="mb-6">
+        <h2 className="text-2xl font-semibold tracking-tight text-ink">{chapter.title}</h2>
+        {chapter.description ? (
+          <p className="mt-2 text-base leading-7 text-muted">{chapter.description}</p>
+        ) : null}
+      </header>
+
       {resources.length === 0 ? (
-        <EmptyState title="No published resources yet" description="Published resources for this chapter will appear here." />
+        <EmptyState
+          title="No published resources yet"
+          description="Published resources for this chapter will appear here."
+        />
       ) : (
         <div className="space-y-4">
           {resources.map((resource) => (
@@ -63,6 +61,6 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
           ))}
         </div>
       )}
-    </PageShell>
+    </article>
   );
 }
