@@ -19,7 +19,6 @@ type NavLink = {
 const links: NavLink[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/courses", label: "Courses" },
-  { href: "/search", label: "Search" },
   { href: "/admin", label: "Admin", adminOnly: true },
 ];
 
