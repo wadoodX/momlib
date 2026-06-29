@@ -14,7 +14,7 @@ export async function StudentDashboard() {
   return (
     <div className="space-y-10">
       <Reveal>
-        <form action="/search" method="get" className="flex flex-col gap-3 sm:flex-row">
+        <form action="/courses" method="get" className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted" />
             <input
