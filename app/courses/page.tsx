@@ -5,7 +5,6 @@ import {
   searchPublishedResources,
   searchPublishedStructure,
 } from "@/lib/db/content";
-import { searchAllResources, searchAllStructure } from "@/lib/db/admin-content";
 import { EmptyState } from "@/components/student/empty-state";
 import { PageShell } from "@/components/student/page-shell";
 import { NodeCard } from "@/components/student/node-card";
@@ -20,7 +19,6 @@ type CoursesPageProps = {
 export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   const { profile } = await requireUser();
   const role = profile?.role ?? "student";
-  const isAdmin = role === "admin";
 
   const params = await searchParams;
   const query = params.q?.trim() ?? "";
@@ -51,9 +49,12 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   let middle: React.ReactNode;
 
   if (isSearching) {
+    // The explorer is the browse/view surface, so search always behaves like a
+    // student's: published content only, linking to the public /courses/… pages
+    // (not the admin studio). Drafts are managed from /admin.
     const [structure, resources] = await Promise.all([
-      isAdmin ? searchAllStructure(query) : searchPublishedStructure(query),
-      isAdmin ? searchAllResources(query) : searchPublishedResources(query),
+      searchPublishedStructure(query),
+      searchPublishedResources(query),
     ]);
 
     middle = (
@@ -61,7 +62,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
         <h2 className="mb-6 text-lg font-semibold text-ink">
           Results for <span className="text-gold">&ldquo;{query}&rdquo;</span>
         </h2>
-        <SearchResults structure={structure} resources={resources} isAdmin={isAdmin} query={query} />
+        <SearchResults structure={structure} resources={resources} isAdmin={false} query={query} />
       </div>
     );
   } else if (selected) {
