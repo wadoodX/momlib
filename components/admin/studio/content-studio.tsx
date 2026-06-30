@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Layers } from "lucide-react";
+import { Layers, Search } from "lucide-react";
 import {
   quickAdd,
   reorder,
@@ -27,6 +27,7 @@ export function ContentStudio({ tree: initialTree }: { tree: CourseNode[] }) {
   const params = useSearchParams();
   const [tree, setTree] = useState(initialTree);
   const [syncedTree, setSyncedTree] = useState(initialTree);
+  const [treeQuery, setTreeQuery] = useState("");
   const [, startTransition] = useTransition();
 
   // Adjustable width of the tree panel. Start at the default for SSR, then adopt
@@ -166,6 +167,7 @@ export function ContentStudio({ tree: initialTree }: { tree: CourseNode[] }) {
   }
 
   const selected = findNode(tree, selection);
+  const trail = nodeTrail(tree, selection);
 
   return (
     <div
@@ -175,8 +177,23 @@ export function ContentStudio({ tree: initialTree }: { tree: CourseNode[] }) {
     >
       <aside className="relative lg:sticky lg:top-6">
         <div className="lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto rounded-3xl border border-line bg-card p-3">
+          <div className="mb-3 flex items-center justify-between gap-2 px-1">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Admin only</span>
+            <span className="text-[10px] text-muted">Add · Edit · Publish</span>
+          </div>
+          <div className="relative mb-3">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+            <input
+              value={treeQuery}
+              onChange={(e) => setTreeQuery(e.target.value)}
+              placeholder="Search content"
+              aria-label="Search courses, subjects, and chapters"
+              className="min-h-10 w-full rounded-xl border border-line bg-paper-soft pl-9 pr-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-sage"
+            />
+          </div>
           <TreeNav
             tree={tree}
+            query={treeQuery}
             selected={selection}
             onSelect={select}
             onReorderCourses={onReorderCourses}
@@ -211,7 +228,12 @@ export function ContentStudio({ tree: initialTree }: { tree: CourseNode[] }) {
 
       <div className="min-w-0">
         {selected ? (
-          <DetailPane key={`${selected.kind}:${selected.node.id}`} selected={selected} onDeleted={clearSelection} />
+          <DetailPane
+            key={`${selected.kind}:${selected.node.id}`}
+            selected={selected}
+            trail={trail}
+            onDeleted={clearSelection}
+          />
         ) : (
           <div className="flex min-h-[50vh] flex-col items-center justify-center rounded-3xl border border-dashed border-line bg-paper-soft/50 p-10 text-center">
             <span className="flex size-12 items-center justify-center rounded-full bg-sage/10 text-sage">
@@ -245,4 +267,20 @@ function findNode(tree: CourseNode[], selection: Selection): SelectedNode | null
     }
   }
   return null;
+}
+
+// Ancestor titles for the selected node's breadcrumb: [] for a course,
+// [course] for a subject, [course, subject] for a chapter.
+function nodeTrail(tree: CourseNode[], selection: Selection): string[] {
+  if (!selection) return [];
+  for (const course of tree) {
+    if (selection.kind === "course" && course.id === selection.id) return [];
+    for (const subject of course.subjects) {
+      if (selection.kind === "subject" && subject.id === selection.id) return [course.title];
+      for (const chapter of subject.chapters) {
+        if (selection.kind === "chapter" && chapter.id === selection.id) return [course.title, subject.title];
+      }
+    }
+  }
+  return [];
 }

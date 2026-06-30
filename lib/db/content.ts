@@ -369,6 +369,14 @@ function omit<T extends object, K extends keyof T>(value: T, key: K): Omit<T, K>
 // Signs the file for `resource`. Callers must only pass resources already loaded
 // by a published-chain-filtered query — R2 signing has no RLS (see signedResourceUrl).
 async function addResourceHref(supabase: SupabaseServerClient, resource: Resource): Promise<ResourceLink> {
+  // Paid resources are never served from here: no signed file URL, no external
+  // href. The card reads `payhip_url` directly and shows a "Buy on Payhip" CTA.
+  // This is the single file-signing choke point, so gating here locks paid files
+  // everywhere (student chapter page + student and admin search).
+  if (resource.is_paid) {
+    return { ...resource, href: null };
+  }
+
   if (resource.external_url) {
     return { ...resource, href: resource.external_url };
   }

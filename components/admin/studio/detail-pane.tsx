@@ -1,32 +1,57 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  sortableKeyboardCoordinates,
-  arrayMove,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2, ExternalLink } from "lucide-react";
+import { Trash2, Pencil, Upload, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { updateCourse, updateSubject, updateChapter, updateResource, deleteResource } from "@/lib/admin/content-actions";
-import { deleteNode, listChapterResources, reorder, type NodeKind } from "@/lib/admin/studio-actions";
+import {
+  updateCourse,
+  updateSubject,
+  updateChapter,
+  updateResource,
+  deleteResource,
+  createFileResource,
+  createLinkResource,
+} from "@/lib/admin/content-actions";
+import { deleteNode, listChapterResources, setPublished, type NodeKind } from "@/lib/admin/studio-actions";
+import { RESOURCE_CATEGORIES, categoryMeta, resourceTypeLabel, type ResourceCategory } from "@/lib/resource-meta";
 import type { Resource } from "@/lib/db/content";
 import type { CourseNode, SubjectNode, ChapterNode } from "@/lib/db/admin-content";
-import { ResourceForm } from "./resource-form";
 import { CustomizationFields } from "./customization-fields";
+import { AccessFields } from "./access-fields";
+
+// The fixed set of resource boxes every chapter shows (the wireframe's 6).
+const RESOURCE_SLOTS: { category: ResourceCategory; name: string }[] = [
+  { category: "notes", name: "Lesson notes" },
+  { category: "slides", name: "Slide deck" },
+  { category: "quiz", name: "Quiz" },
+  { category: "question_bank", name: "Question bank" },
+  { category: "worksheet", name: "Worksheet" },
+  { category: "audio", name: "NotebookLM" },
+];
+
+const FILE_ACCEPT = ".pdf,.ppt,.pptx,.doc,.docx,image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm";
+const fileInputClass =
+  "mt-1.5 w-full rounded-xl border border-line bg-paper-soft px-3 py-2.5 text-sm text-ink outline-none transition focus:border-sage file:mr-3 file:rounded-md file:border-0 file:bg-sage file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-paper";
+
+// Local copy of the gamma host check (the one in content-actions lives in a
+// "use server" module and can't be imported into a client component).
+function isGammaUrl(value: string | null) {
+  if (!value) return false;
+  try {
+    const h = new URL(value).hostname;
+    return h === "gamma.app" || h.endsWith(".gamma.app");
+  } catch {
+    return false;
+  }
+}
+
+// Human meta line for an admin resource card, e.g. "Notes · PDF · free".
+function accessLabel(resource: Resource): string {
+  if (resource.is_paid) return "paid → Payhip";
+  if (isGammaUrl(resource.external_url)) return "Gamma";
+  return "free";
+}
 
 type SelectedNode =
   | { kind: "course"; node: CourseNode }
@@ -37,7 +62,24 @@ const KIND_LABEL: Record<NodeKind, string> = { course: "Course", subject: "Subje
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-line bg-paper-soft px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted focus:border-sage";
 
-export function DetailPane({ selected, onDeleted }: { selected: SelectedNode; onDeleted: () => void }) {
+export function DetailPane({
+  selected,
+  trail = [],
+  onDeleted,
+}: {
+  selected: SelectedNode;
+  trail?: string[];
+  onDeleted: () => void;
+}) {
+  // Chapters get the simple, student-like view (header + resources); courses and
+  // subjects keep the settings form (they carry slug + color/icon).
+  if (selected.kind === "chapter") {
+    return <ChapterDetail node={selected.node} trail={trail} onDeleted={onDeleted} />;
+  }
+  return <NodeSettings selected={selected} onDeleted={onDeleted} />;
+}
+
+function NodeSettings({ selected, onDeleted }: { selected: SelectedNode; onDeleted: () => void }) {
   const { kind, node } = selected;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -134,23 +176,155 @@ export function DetailPane({ selected, onDeleted }: { selected: SelectedNode; on
           </button>
         </div>
       </form>
-
-      {kind === "chapter" ? <ResourcesSection chapterId={node.id} /> : null}
     </div>
   );
 }
 
-/* ---------- resources ---------- */
+/* ---------- chapter: clean header + resources ---------- */
+
+function ChapterDetail({
+  node,
+  trail,
+  onDeleted,
+}: {
+  node: ChapterNode;
+  trail: string[];
+  onDeleted: () => void;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function save(formData: FormData) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await updateChapter(formData);
+        setEditing(false);
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not save.");
+      }
+    });
+  }
+
+  function togglePublish() {
+    startTransition(async () => {
+      await setPublished("chapter", node.id, !node.is_published);
+      router.refresh();
+    });
+  }
+
+  function remove() {
+    if (!window.confirm("Delete this chapter? Everything inside it will be removed too.")) return;
+    startTransition(async () => {
+      await deleteNode("chapter", node.id);
+      onDeleted();
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Read-only header — breadcrumb, title, subtitle — with quiet actions. */}
+      <div>
+        {trail.length > 0 ? (
+          <p className="text-xs uppercase tracking-[0.18em] text-muted">{trail.join(" / ")}</p>
+        ) : null}
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-2xl font-semibold text-ink">{node.title}</h2>
+            {node.description ? <p className="mt-1 text-sm leading-6 text-muted">{node.description}</p> : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={togglePublish}
+              disabled={pending}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60",
+                node.is_published
+                  ? "border-sage/40 bg-sage/10 text-sage-deep"
+                  : "border-line text-muted hover:text-ink",
+              )}
+            >
+              {node.is_published ? "Published" : "Draft"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing((v) => !v)}
+              aria-label="Edit details"
+              className="rounded-lg border border-line p-2 text-muted transition hover:text-ink"
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={pending}
+              aria-label="Delete chapter"
+              className="rounded-lg border border-line p-2 text-muted transition hover:border-destructive hover:text-destructive disabled:opacity-60"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit details — collapsed by default so the default view stays simple. */}
+      {editing ? (
+        <form action={save} className="space-y-3 rounded-2xl border border-line bg-card p-5">
+          <input type="hidden" name="chapter_id" value={node.id} />
+          <input type="hidden" name="order_index" value={node.order_index} />
+          <label className="block">
+            <span className="text-xs font-medium text-ink">Title</span>
+            <input required name="title" defaultValue={node.title} className={inputClass} />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-ink">Subtitle</span>
+            <input
+              name="description"
+              defaultValue={node.description ?? ""}
+              placeholder="e.g. Hadith 680–710 · etiquette of companionship"
+              className={inputClass}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-ink">Slug</span>
+            <input name="slug" defaultValue={node.slug} className={inputClass} />
+          </label>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={pending}
+              className="rounded-lg bg-sage px-4 py-2 text-xs font-semibold text-paper transition hover:bg-sage-deep disabled:opacity-60"
+            >
+              Save
+            </button>
+            <button type="button" onClick={() => setEditing(false)} className="text-xs text-muted transition hover:text-ink">
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      <ResourcesSection chapterId={node.id} />
+    </div>
+  );
+}
+
+/* ---------- resources: a fixed grid of 6 boxes per chapter ---------- */
+
+type Selected = { kind: "slot"; category: ResourceCategory } | { kind: "other"; id: string };
 
 function ResourcesSection({ chapterId }: { chapterId: string }) {
   const [resources, setResources] = useState<Resource[] | null>(null);
-  // Tracks the latest reorder write so a row's onChanged refetch doesn't land
-  // before it commits and briefly revert the visual order.
-  const reorderRef = useRef<Promise<unknown>>(Promise.resolve());
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  // Which target the always-visible "Add resource" panel acts on: one of the 6
+  // boxes (by category) or a leftover "other" resource (by id). Defaults to the
+  // first box so the panel is immediately usable.
+  const [selected, setSelected] = useState<Selected>({ kind: "slot", category: RESOURCE_SLOTS[0].category });
 
   // DetailPane is keyed per chapter in the parent, so this mounts fresh with
   // resources === null (loading) and just fetches once.
@@ -164,67 +338,307 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
     };
   }, [chapterId]);
 
-  function onDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id || !resources) return;
-    const oldIndex = resources.findIndex((r) => r.id === active.id);
-    const newIndex = resources.findIndex((r) => r.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const next = arrayMove(resources, oldIndex, newIndex);
-    setResources(next);
-    reorderRef.current = reorder("resource", next.map((r) => r.id)).catch((e) => {
-      console.error("Failed to persist resource order:", e);
-    });
+  async function refetch() {
+    setResources(await listChapterResources(chapterId));
   }
 
-  return (
-    <section className="space-y-4">
-      <h3 className="text-lg font-semibold text-ink">Resources</h3>
-      <ResourceForm chapterId={chapterId} />
+  if (resources === null) {
+    return <p className="text-sm text-muted">Loading resources…</p>;
+  }
 
-      {resources === null ? (
-        <p className="text-sm text-muted">Loading resources…</p>
-      ) : resources.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-line bg-paper-soft p-5 text-sm text-muted">
-          No resources yet. Add a file or link above.
-        </p>
-      ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={resources.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-            <ul className="space-y-2">
-              {resources.map((resource) => (
-                <ResourceRow
-                  key={resource.id}
-                  resource={resource}
-                  onChanged={async () => {
-                    await reorderRef.current; // don't clobber an in-flight reorder
-                    setResources(await listChapterResources(chapterId));
-                  }}
-                />
-              ))}
-            </ul>
-          </SortableContext>
-        </DndContext>
-      )}
+  // Each box shows the first resource of its category. Anything left over (no
+  // category, a non-box category, or a duplicate) shows under "Other resources"
+  // so existing/legacy content is never hidden.
+  const used = new Set<string>();
+  const bySlot = new Map<ResourceCategory, Resource>();
+  for (const slot of RESOURCE_SLOTS) {
+    const match = resources.find((r) => r.category === slot.category && !used.has(r.id));
+    if (match) {
+      bySlot.set(slot.category, match);
+      used.add(match.id);
+    }
+  }
+  const others = resources.filter((r) => !used.has(r.id));
+
+  return (
+    <section className="space-y-5">
+      <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-gold">Resources</h3>
+
+      {/* Select a box (highlights it); the panel below acts on the selection. */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {RESOURCE_SLOTS.map((slot) => (
+          <ResourceBox
+            key={slot.category}
+            slot={slot}
+            resource={bySlot.get(slot.category) ?? null}
+            selected={selected.kind === "slot" && selected.category === slot.category}
+            onSelect={() => setSelected({ kind: "slot", category: slot.category })}
+          />
+        ))}
+      </div>
+
+      {/* Always-available add / edit panel for the current selection. */}
+      <ResourcePanel chapterId={chapterId} selected={selected} bySlot={bySlot} others={others} onChanged={refetch} />
+
+      {others.length > 0 ? (
+        <div className="space-y-2 pt-2">
+          <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted">Other resources</p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {others.map((r) => (
+              <OtherResourceItem
+                key={r.id}
+                resource={r}
+                selected={selected.kind === "other" && selected.id === r.id}
+                onSelect={() => setSelected({ kind: "other", id: r.id })}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
 
-function ResourceRow({ resource, onChanged }: { resource: Resource; onChanged: () => void }) {
+// Resolves the current selection to the right form: Add (empty box), or Edit
+// (a filled box / an "other" resource). Always rendered, so the section is
+// "always available" below the boxes.
+function ResourcePanel({
+  chapterId,
+  selected,
+  bySlot,
+  others,
+  onChanged,
+}: {
+  chapterId: string;
+  selected: Selected;
+  bySlot: Map<ResourceCategory, Resource>;
+  others: Resource[];
+  onChanged: () => void;
+}) {
+  if (selected.kind === "slot") {
+    const slot = RESOURCE_SLOTS.find((s) => s.category === selected.category)!;
+    const resource = bySlot.get(selected.category) ?? null;
+    if (resource) {
+      return <EditPanel key={resource.id} resource={resource} headerLabel={slot.name} allowMove={false} onChanged={onChanged} />;
+    }
+    return (
+      <AddPanel
+        key={`add:${slot.category}`}
+        chapterId={chapterId}
+        slot={slot}
+        slotIndex={RESOURCE_SLOTS.indexOf(slot)}
+        onChanged={onChanged}
+      />
+    );
+  }
+
+  const resource = others.find((r) => r.id === selected.id);
+  if (!resource) {
+    return (
+      <div className="rounded-2xl border border-dashed border-line bg-paper-soft/50 p-5 text-sm text-muted">
+        Select a box above to add a resource.
+      </div>
+    );
+  }
+  return <EditPanel key={resource.id} resource={resource} headerLabel="resource" allowMove onChanged={onChanged} />;
+}
+
+// A box: just displays its state and selects on click — no form opens inside it.
+function ResourceBox({
+  slot,
+  resource,
+  selected,
+  onSelect,
+}: {
+  slot: { category: ResourceCategory; name: string };
+  resource: Resource | null;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const Icon = categoryMeta(slot.category).icon;
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={cn(
+        "flex min-h-[7rem] w-full flex-col items-start gap-2 rounded-2xl border p-4 text-left transition",
+        selected
+          ? "border-sage bg-card ring-2 ring-sage"
+          : resource
+            ? "border-line bg-card hover:border-sage"
+            : "border-dashed border-line bg-paper-soft/40 hover:border-sage",
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-9 items-center justify-center rounded-xl",
+          resource ? (resource.is_paid ? "bg-gold/15 text-gold" : "bg-sage/15 text-sage-deep") : "bg-sage/10 text-muted",
+        )}
+      >
+        <Icon className="size-4.5" />
+      </span>
+      {resource ? (
+        <>
+          <span className="block w-full truncate font-semibold text-ink">{resource.title}</span>
+          <span className="block w-full truncate text-xs text-muted">
+            {resourceTypeLabel(resource.resource_type)} · {accessLabel(resource)}
+          </span>
+        </>
+      ) : (
+        <>
+          <span className="font-semibold text-ink">{slot.name}</span>
+          <span className="text-xs text-muted">Empty</span>
+        </>
+      )}
+      {resource && !resource.is_published ? (
+        <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted">Draft</span>
+      ) : null}
+    </button>
+  );
+}
+
+// The always-visible "Add resource" panel, targeting the selected empty box.
+function AddPanel({
+  chapterId,
+  slot,
+  slotIndex,
+  onChanged,
+}: {
+  chapterId: string;
+  slot: { category: ResourceCategory; name: string };
+  slotIndex: number;
+  onChanged: () => void;
+}) {
+  const router = useRouter();
+  const [mode, setMode] = useState<"file" | "link">("file");
+  const [paid, setPaid] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function submit(formData: FormData) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        if (mode === "file") {
+          await createFileResource(formData);
+        } else {
+          await createLinkResource(formData);
+        }
+        onChanged();
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not add the resource.");
+      }
+    });
+  }
+
+  return (
+    <form action={submit} className="space-y-3 rounded-2xl border border-dashed border-line bg-paper-soft/50 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Add resource · {slot.name}</p>
+      <input type="hidden" name="chapter_id" value={chapterId} />
+      <input type="hidden" name="category" value={slot.category} />
+      <input type="hidden" name="order_index" value={slotIndex} />
+
+      <div className="inline-grid grid-cols-2 gap-1 rounded-xl border border-line bg-paper-soft p-1">
+        {(["file", "link"] as const).map((m) => {
+          const Icon = m === "file" ? Upload : Link2;
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              aria-pressed={mode === m}
+              className={cn(
+                "flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium transition-colors",
+                mode === m ? "bg-sage text-paper" : "text-muted hover:text-ink",
+              )}
+            >
+              <Icon className="size-3.5" />
+              {m === "file" ? "Upload file" : "Add link"}
+            </button>
+          );
+        })}
+      </div>
+
+      {mode === "file" ? (
+        <label className="block">
+          <span className="text-xs font-medium text-ink">File</span>
+          <input required name="file" type="file" accept={FILE_ACCEPT} className={fileInputClass} />
+        </label>
+      ) : (
+        <>
+          <label className="block">
+            <span className="text-xs font-medium text-ink">Link</span>
+            <input required name="external_url" type="url" placeholder="https://…" className={inputClass} />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input name="is_gamma" type="checkbox" className="size-4 accent-sage" />
+            Gamma presentation
+          </label>
+        </>
+      )}
+
+      <label className="block">
+        <span className="text-xs font-medium text-ink">Title</span>
+        <input required name="title" defaultValue={slot.name} className={inputClass} />
+      </label>
+
+      <AccessFields paid={paid} onPaid={setPaid} />
+
+      <label className="flex items-center gap-2 text-sm text-ink">
+        <input name="is_published" type="checkbox" defaultChecked className="size-4 accent-sage" />
+        Published
+      </label>
+
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded-lg bg-sage px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-sage-deep disabled:opacity-60"
+      >
+        {pending ? "Adding…" : "Add resource"}
+      </button>
+    </form>
+  );
+}
+
+// The always-visible panel when the selected box is filled (or an "other"
+// resource is selected): edit title + access + published, or remove. `allowMove`
+// adds a "Move to box" dropdown (for leftover resources). The file/link itself is
+// changed by removing and re-adding.
+function EditPanel({
+  resource,
+  headerLabel,
+  allowMove,
+  onChanged,
+}: {
+  resource: Resource;
+  headerLabel: string;
+  allowMove: boolean;
+  onChanged: () => void;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: resource.id });
+  const [paid, setPaid] = useState(resource.is_paid);
+  const [error, setError] = useState<string | null>(null);
 
   function save(formData: FormData) {
+    setError(null);
     startTransition(async () => {
-      await updateResource(formData);
-      onChanged();
-      router.refresh();
+      try {
+        await updateResource(formData);
+        onChanged();
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not save.");
+      }
     });
   }
 
   function remove() {
-    if (!window.confirm("Delete this resource?")) return;
+    if (!window.confirm("Remove this resource?")) return;
     const formData = new FormData();
     formData.set("resource_id", resource.id);
     formData.set("chapter_id", resource.chapter_id);
@@ -237,50 +651,49 @@ function ResourceRow({ resource, onChanged }: { resource: Resource; onChanged: (
   }
 
   return (
-    <li
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("rounded-2xl border border-line bg-card p-4", isDragging && "opacity-60")}
-    >
-      <form action={save} className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          aria-label="Drag to reorder"
-          className="cursor-grab touch-none text-line active:cursor-grabbing"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="size-4" />
-        </button>
-        <input type="hidden" name="resource_id" value={resource.id} />
-        <input type="hidden" name="chapter_id" value={resource.chapter_id} />
-        <input type="hidden" name="order_index" value={resource.order_index} />
-        <input
-          name="title"
-          defaultValue={resource.title}
-          required
-          className="min-w-40 flex-1 rounded-lg border border-line bg-paper-soft px-3 py-2 text-sm text-ink outline-none focus:border-sage"
-        />
-        <span className="text-xs uppercase tracking-wide text-muted">{resource.resource_type}</span>
-        {resource.external_url ? (
-          <a
-            href={resource.external_url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-muted transition hover:text-gold"
-            aria-label="Open link"
-          >
-            <ExternalLink className="size-4" />
-          </a>
-        ) : null}
-        <label className="flex items-center gap-1.5 text-xs text-ink">
-          <input name="is_published" type="checkbox" defaultChecked={resource.is_published} className="size-4 accent-sage" />
-          Published
+    <form action={save} className="space-y-3 rounded-2xl border border-line bg-card p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Edit · {headerLabel}</p>
+      <input type="hidden" name="resource_id" value={resource.id} />
+      <input type="hidden" name="chapter_id" value={resource.chapter_id} />
+      <input type="hidden" name="order_index" value={resource.order_index} />
+      {/* preserve description on edit */}
+      <input type="hidden" name="description" value={resource.description ?? ""} />
+      {/* a box resource keeps its category; an "other" resource can be moved */}
+      {!allowMove ? <input type="hidden" name="category" value={resource.category ?? ""} /> : null}
+
+      <label className="block">
+        <span className="text-xs font-medium text-ink">Title</span>
+        <input required name="title" defaultValue={resource.title} className={inputClass} />
+      </label>
+
+      {allowMove ? (
+        <label className="block">
+          <span className="text-xs font-medium text-ink">Move to box</span>
+          <select name="category" defaultValue={resource.category ?? ""} className={inputClass}>
+            <option value="">— none —</option>
+            {RESOURCE_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
         </label>
+      ) : null}
+
+      <AccessFields paid={paid} onPaid={setPaid} defaultPayhipUrl={resource.payhip_url ?? ""} />
+
+      <label className="flex items-center gap-2 text-sm text-ink">
+        <input name="is_published" type="checkbox" defaultChecked={resource.is_published} className="size-4 accent-sage" />
+        Published
+      </label>
+
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-sage px-3 py-2 text-xs font-semibold text-paper transition hover:bg-sage-deep disabled:opacity-60"
+          className="rounded-lg bg-sage px-4 py-2 text-xs font-semibold text-paper transition hover:bg-sage-deep disabled:opacity-60"
         >
           Save
         </button>
@@ -288,12 +701,51 @@ function ResourceRow({ resource, onChanged }: { resource: Resource; onChanged: (
           type="button"
           onClick={remove}
           disabled={pending}
-          className="text-destructive transition hover:text-destructive/80"
-          aria-label="Delete resource"
+          className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-destructive transition hover:text-destructive/80"
         >
           <Trash2 className="size-4" />
+          Remove
         </button>
-      </form>
-    </li>
+      </div>
+    </form>
+  );
+}
+
+// A leftover resource that doesn't fit one of the 6 boxes (uncategorized/legacy
+// or a duplicate). Selecting it loads it into the panel above for editing — no
+// form opens inside the card.
+function OtherResourceItem({
+  resource,
+  selected,
+  onSelect,
+}: {
+  resource: Resource;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const Icon = categoryMeta(resource.category).icon;
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={cn(
+        "flex w-full items-start gap-3 rounded-2xl border bg-card p-4 text-left transition",
+        selected ? "border-sage ring-2 ring-sage" : "border-line hover:border-sage",
+      )}
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-paper-soft text-muted">
+        <Icon className="size-4.5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-semibold text-ink">{resource.title}</span>
+        <span className="mt-0.5 block truncate text-xs text-muted">
+          {resourceTypeLabel(resource.resource_type)} · {accessLabel(resource)}
+        </span>
+      </span>
+      {!resource.is_published ? (
+        <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.15em] text-muted">Draft</span>
+      ) : null}
+    </button>
   );
 }

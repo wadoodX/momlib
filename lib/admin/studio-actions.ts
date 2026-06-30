@@ -149,11 +149,14 @@ type ResRow = {
   title: string;
   description: string | null;
   resource_type: Resource["resource_type"];
+  category: string | null;
   file_path: string | null;
   file_name: string | null;
   file_size: number | null;
   mime_type: string | null;
   external_url: string | null;
+  is_paid: boolean;
+  payhip_url: string | null;
   order_index: number;
   is_published: boolean;
 };
@@ -190,11 +193,14 @@ async function cloneResources(
       title: r.title,
       description: r.description,
       resource_type: r.resource_type,
+      category: r.category,
       file_path: filePath,
       file_name: r.file_name,
       file_size: r.file_size,
       mime_type: r.mime_type,
       external_url: r.external_url,
+      is_paid: r.is_paid,
+      payhip_url: r.payhip_url,
       order_index: r.order_index,
       is_published: r.is_published,
     });

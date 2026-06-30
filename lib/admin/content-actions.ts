@@ -8,6 +8,7 @@ import { slugify, uniqueSlug } from "@/lib/admin/slug";
 import { deleteNodeAndStorage } from "@/lib/admin/storage-cleanup";
 import { uploadResource, removeResources } from "@/lib/storage/resources";
 import { isColor, isIcon } from "@/lib/customization";
+import { isCategory } from "@/lib/resource-meta";
 import type { Database } from "@/types/database";
 
 type ResourceType = Database["public"]["Tables"]["resources"]["Row"]["resource_type"];
@@ -222,9 +223,11 @@ export async function createLinkResource(formData: FormData) {
     title: getRequiredString(formData, "title"),
     description: getOptionalString(formData, "description"),
     resource_type: "link",
+    category: getCategory(formData),
     external_url: url,
     order_index: getNumber(formData, "order_index"),
     is_published: getCheckbox(formData, "is_published"),
+    ...getPaidFields(formData),
   });
 
   if (error) {
@@ -254,6 +257,10 @@ export async function createFileResource(formData: FormData) {
   const filePath = await buildResourcePath(supabase, chapterId, resourceId, fileName);
   const resourceType = inferResourceType(file);
 
+  // Validate everything that can throw (e.g. paid → required Payhip URL) BEFORE
+  // uploading, so a validation failure never orphans uploaded bytes.
+  const paidFields = getPaidFields(formData);
+
   await uploadResource(supabase, filePath, file);
 
   const { error } = await supabase.from("resources").insert({
@@ -262,12 +269,14 @@ export async function createFileResource(formData: FormData) {
     title: getRequiredString(formData, "title"),
     description: getOptionalString(formData, "description"),
     resource_type: resourceType,
+    category: getCategory(formData),
     file_path: filePath,
     file_name: fileName,
     file_size: file.size,
     mime_type: file.type || null,
     order_index: getNumber(formData, "order_index"),
     is_published: getCheckbox(formData, "is_published"),
+    ...paidFields,
   });
 
   if (error) {
@@ -290,8 +299,10 @@ export async function updateResource(formData: FormData) {
     .update({
       title: getRequiredString(formData, "title"),
       description: getOptionalString(formData, "description"),
+      category: getCategory(formData),
       order_index: getNumber(formData, "order_index"),
       is_published: getCheckbox(formData, "is_published"),
+      ...getPaidFields(formData),
     })
     .eq("id", resourceId);
 
@@ -351,6 +362,24 @@ function getCheckbox(formData: FormData, name: string) {
 function getColor(formData: FormData) {
   const value = getOptionalString(formData, "color");
   return isColor(value) ? value : null;
+}
+
+function getCategory(formData: FormData) {
+  const value = getOptionalString(formData, "category");
+  return isCategory(value) ? value : null;
+}
+
+// Access is a Free/Paid radio group (radios don't submit "on", so getCheckbox
+// can't be reused here).
+function getPaid(formData: FormData) {
+  return formData.get("access") === "paid";
+}
+
+// A paid resource must carry a valid Payhip buy URL; a free one stores none
+// (so toggling back to free never leaves a stale buy link behind).
+function getPaidFields(formData: FormData): { is_paid: boolean; payhip_url: string | null } {
+  const isPaid = getPaid(formData);
+  return { is_paid: isPaid, payhip_url: isPaid ? getRequiredUrl(formData, "payhip_url") : null };
 }
 
 function getIcon(formData: FormData) {
