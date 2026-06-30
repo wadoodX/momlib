@@ -13,20 +13,41 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
   arrayMove,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2, ExternalLink } from "lucide-react";
+import { GripVertical, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { updateCourse, updateSubject, updateChapter, updateResource, deleteResource } from "@/lib/admin/content-actions";
 import { deleteNode, listChapterResources, reorder, type NodeKind } from "@/lib/admin/studio-actions";
+import { RESOURCE_CATEGORIES, categoryMeta, resourceTypeLabel } from "@/lib/resource-meta";
 import type { Resource } from "@/lib/db/content";
 import type { CourseNode, SubjectNode, ChapterNode } from "@/lib/db/admin-content";
 import { ResourceForm } from "./resource-form";
 import { CustomizationFields } from "./customization-fields";
+import { AccessFields } from "./access-fields";
+
+// Local copy of the gamma host check (the one in content-actions lives in a
+// "use server" module and can't be imported into a client component).
+function isGammaUrl(value: string | null) {
+  if (!value) return false;
+  try {
+    const h = new URL(value).hostname;
+    return h === "gamma.app" || h.endsWith(".gamma.app");
+  } catch {
+    return false;
+  }
+}
+
+// Human meta line for an admin resource card, e.g. "Notes · PDF · free".
+function accessLabel(resource: Resource): string {
+  if (resource.is_paid) return "paid → Payhip";
+  if (isGammaUrl(resource.external_url)) return "Gamma";
+  return "free";
+}
 
 type SelectedNode =
   | { kind: "course"; node: CourseNode }
@@ -144,7 +165,8 @@ export function DetailPane({ selected, onDeleted }: { selected: SelectedNode; on
 
 function ResourcesSection({ chapterId }: { chapterId: string }) {
   const [resources, setResources] = useState<Resource[] | null>(null);
-  // Tracks the latest reorder write so a row's onChanged refetch doesn't land
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Tracks the latest reorder write so a card's onChanged refetch doesn't land
   // before it commits and briefly revert the visual order.
   const reorderRef = useRef<Promise<unknown>>(Promise.resolve());
   const sensors = useSensors(
@@ -164,6 +186,11 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
     };
   }, [chapterId]);
 
+  async function refetch() {
+    await reorderRef.current; // don't clobber an in-flight reorder
+    setResources(await listChapterResources(chapterId));
+  }
+
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id || !resources) return;
@@ -179,26 +206,28 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
 
   return (
     <section className="space-y-4">
-      <h3 className="text-lg font-semibold text-ink">Resources</h3>
-      <ResourceForm chapterId={chapterId} />
+      <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-gold">Resources</h3>
 
       {resources === null ? (
         <p className="text-sm text-muted">Loading resources…</p>
       ) : resources.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line bg-paper-soft p-5 text-sm text-muted">
-          No resources yet. Add a file or link above.
+          No resources yet. Add a file or link below.
         </p>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={resources.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-            <ul className="space-y-2">
+          <SortableContext items={resources.map((r) => r.id)} strategy={rectSortingStrategy}>
+            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {resources.map((resource) => (
-                <ResourceRow
+                <ResourceCardItem
                   key={resource.id}
                   resource={resource}
-                  onChanged={async () => {
-                    await reorderRef.current; // don't clobber an in-flight reorder
-                    setResources(await listChapterResources(chapterId));
+                  selected={selectedId === resource.id}
+                  onSelect={() => setSelectedId((id) => (id === resource.id ? null : resource.id))}
+                  onChanged={refetch}
+                  onDeleted={() => {
+                    setSelectedId((id) => (id === resource.id ? null : id));
+                    refetch();
                   }}
                 />
               ))}
@@ -206,20 +235,97 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
           </SortableContext>
         </DndContext>
       )}
+
+      <ResourceForm chapterId={chapterId} onAdded={refetch} />
     </section>
   );
 }
 
-function ResourceRow({ resource, onChanged }: { resource: Resource; onChanged: () => void }) {
+function ResourceCardItem({
+  resource,
+  selected,
+  onSelect,
+  onChanged,
+  onDeleted,
+}: {
+  resource: Resource;
+  selected: boolean;
+  onSelect: () => void;
+  onChanged: () => void;
+  onDeleted: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: resource.id });
+  const meta = categoryMeta(resource.category);
+  const Icon = meta.icon;
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        "rounded-2xl border bg-card p-4 transition",
+        selected ? "border-sage ring-2 ring-sage" : "border-line",
+        isDragging && "opacity-60",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          aria-label="Drag to reorder"
+          className="mt-0.5 cursor-grab touch-none text-line active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-xl",
+            resource.is_paid ? "bg-gold/15 text-gold" : "bg-sage/15 text-sage-deep",
+          )}
+        >
+          <Icon className="size-4.5" />
+        </span>
+        <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-left">
+          <span className="block truncate font-semibold text-ink">{resource.title}</span>
+          <span className="mt-0.5 block truncate text-xs text-muted">
+            {meta.label} · {resourceTypeLabel(resource.resource_type)} · {accessLabel(resource)}
+          </span>
+        </button>
+        {!resource.is_published ? (
+          <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.15em] text-muted">Draft</span>
+        ) : null}
+      </div>
+
+      {selected ? <ResourceEditor resource={resource} onChanged={onChanged} onDeleted={onDeleted} /> : null}
+    </li>
+  );
+}
+
+function ResourceEditor({
+  resource,
+  onChanged,
+  onDeleted,
+}: {
+  resource: Resource;
+  onChanged: () => void;
+  onDeleted: () => void;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: resource.id });
+  const [paid, setPaid] = useState(resource.is_paid);
+  const [error, setError] = useState<string | null>(null);
 
   function save(formData: FormData) {
+    setError(null);
     startTransition(async () => {
-      await updateResource(formData);
-      onChanged();
-      router.refresh();
+      try {
+        await updateResource(formData);
+        onChanged();
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not save.");
+      }
     });
   }
 
@@ -231,56 +337,59 @@ function ResourceRow({ resource, onChanged }: { resource: Resource; onChanged: (
     formData.set("file_path", resource.file_path ?? "");
     startTransition(async () => {
       await deleteResource(formData);
-      onChanged();
+      onDeleted();
       router.refresh();
     });
   }
 
   return (
-    <li
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("rounded-2xl border border-line bg-card p-4", isDragging && "opacity-60")}
-    >
-      <form action={save} className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          aria-label="Drag to reorder"
-          className="cursor-grab touch-none text-line active:cursor-grabbing"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="size-4" />
-        </button>
-        <input type="hidden" name="resource_id" value={resource.id} />
-        <input type="hidden" name="chapter_id" value={resource.chapter_id} />
-        <input type="hidden" name="order_index" value={resource.order_index} />
-        <input
-          name="title"
-          defaultValue={resource.title}
-          required
-          className="min-w-40 flex-1 rounded-lg border border-line bg-paper-soft px-3 py-2 text-sm text-ink outline-none focus:border-sage"
-        />
-        <span className="text-xs uppercase tracking-wide text-muted">{resource.resource_type}</span>
-        {resource.external_url ? (
-          <a
-            href={resource.external_url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-muted transition hover:text-gold"
-            aria-label="Open link"
-          >
-            <ExternalLink className="size-4" />
-          </a>
-        ) : null}
-        <label className="flex items-center gap-1.5 text-xs text-ink">
-          <input name="is_published" type="checkbox" defaultChecked={resource.is_published} className="size-4 accent-sage" />
-          Published
-        </label>
+    <form action={save} className="mt-4 space-y-3 border-t border-line pt-4">
+      <input type="hidden" name="resource_id" value={resource.id} />
+      <input type="hidden" name="chapter_id" value={resource.chapter_id} />
+      <input type="hidden" name="order_index" value={resource.order_index} />
+
+      <label className="block">
+        <span className="text-xs font-medium text-ink">Title</span>
+        <input required name="title" defaultValue={resource.title} className={inputClass} />
+      </label>
+
+      <label className="block">
+        <span className="text-xs font-medium text-ink">
+          Description <span className="text-muted">(optional)</span>
+        </span>
+        <textarea name="description" rows={2} defaultValue={resource.description ?? ""} className={inputClass} />
+      </label>
+
+      <label className="block">
+        <span className="text-xs font-medium text-ink">Type</span>
+        <select name="category" defaultValue={resource.category ?? ""} className={inputClass}>
+          <option value="">— none —</option>
+          {RESOURCE_CATEGORIES.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <AccessFields
+        paid={paid}
+        onPaid={setPaid}
+        defaultPayhipUrl={resource.payhip_url ?? ""}
+      />
+
+      <label className="flex items-center gap-2 text-sm text-ink">
+        <input name="is_published" type="checkbox" defaultChecked={resource.is_published} className="size-4 accent-sage" />
+        Published
+      </label>
+
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-sage px-3 py-2 text-xs font-semibold text-paper transition hover:bg-sage-deep disabled:opacity-60"
+          className="rounded-lg bg-sage px-4 py-2 text-xs font-semibold text-paper transition hover:bg-sage-deep disabled:opacity-60"
         >
           Save
         </button>
@@ -288,12 +397,12 @@ function ResourceRow({ resource, onChanged }: { resource: Resource; onChanged: (
           type="button"
           onClick={remove}
           disabled={pending}
-          className="text-destructive transition hover:text-destructive/80"
-          aria-label="Delete resource"
+          className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-destructive transition hover:text-destructive/80"
         >
           <Trash2 className="size-4" />
+          Delete
         </button>
-      </form>
-    </li>
+      </div>
+    </form>
   );
 }

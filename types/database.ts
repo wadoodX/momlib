@@ -181,6 +181,9 @@ export type Database = {
           title: string;
           description: string | null;
           resource_type: "pdf" | "ppt" | "doc" | "image" | "link" | "video";
+          category: string | null;
+          is_paid: boolean;
+          payhip_url: string | null;
           file_path: string | null;
           file_name: string | null;
           file_size: number | null;
@@ -198,6 +201,9 @@ export type Database = {
           title: string;
           description?: string | null;
           resource_type: "pdf" | "ppt" | "doc" | "image" | "link" | "video";
+          category?: string | null;
+          is_paid?: boolean;
+          payhip_url?: string | null;
           file_path?: string | null;
           file_name?: string | null;
           file_size?: number | null;
@@ -215,6 +221,9 @@ export type Database = {
           title?: string;
           description?: string | null;
           resource_type?: "pdf" | "ppt" | "doc" | "image" | "link" | "video";
+          category?: string | null;
+          is_paid?: boolean;
+          payhip_url?: string | null;
           file_path?: string | null;
           file_name?: string | null;
           file_size?: number | null;

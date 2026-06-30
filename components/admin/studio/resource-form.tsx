@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation";
 import { Upload, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createFileResource, createLinkResource } from "@/lib/admin/content-actions";
+import { RESOURCE_CATEGORIES } from "@/lib/resource-meta";
+import { AccessFields } from "./access-fields";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-line bg-paper-soft px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted focus:border-sage focus-visible:ring-2 focus-visible:ring-sage";
 
-export function ResourceForm({ chapterId }: { chapterId: string }) {
+export function ResourceForm({ chapterId, onAdded }: { chapterId: string; onAdded?: () => void }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [mode, setMode] = useState<"file" | "link">("file");
+  const [paid, setPaid] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -26,6 +29,8 @@ export function ResourceForm({ chapterId }: { chapterId: string }) {
           await createLinkResource(formData);
         }
         formRef.current?.reset();
+        setPaid(false);
+        onAdded?.();
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not add the resource.");
@@ -34,11 +39,12 @@ export function ResourceForm({ chapterId }: { chapterId: string }) {
   }
 
   return (
-    <form ref={formRef} action={submit} className="rounded-2xl border border-line bg-paper-soft/60 p-4">
+    <form ref={formRef} action={submit} className="rounded-2xl border border-dashed border-line bg-paper-soft/50 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Add resource</p>
       <input type="hidden" name="chapter_id" value={chapterId} />
 
-      {/* File | Link toggle */}
-      <div className="inline-grid grid-cols-2 gap-1 rounded-xl border border-line bg-paper-soft p-1">
+      {/* Upload file | Add link toggle */}
+      <div className="mt-3 inline-grid grid-cols-2 gap-1 rounded-xl border border-line bg-paper-soft p-1">
         {(["file", "link"] as const).map((m) => {
           const Icon = m === "file" ? Upload : Link2;
           return (
@@ -48,7 +54,7 @@ export function ResourceForm({ chapterId }: { chapterId: string }) {
               onClick={() => setMode(m)}
               aria-pressed={mode === m}
               className={cn(
-                "flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium capitalize transition-colors",
+                "flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
                 mode === m ? "bg-sage text-paper" : "text-muted hover:text-ink",
               )}
             >
@@ -60,16 +66,6 @@ export function ResourceForm({ chapterId }: { chapterId: string }) {
       </div>
 
       <div className="mt-4 grid gap-3">
-        <label className="block">
-          <span className="text-xs font-medium text-ink">Title</span>
-          <input required name="title" className={inputClass} />
-        </label>
-
-        <label className="block">
-          <span className="text-xs font-medium text-ink">Description</span>
-          <textarea name="description" rows={2} className={inputClass} />
-        </label>
-
         {mode === "file" ? (
           <label className="block">
             <span className="text-xs font-medium text-ink">File</span>
@@ -84,7 +80,7 @@ export function ResourceForm({ chapterId }: { chapterId: string }) {
         ) : (
           <>
             <label className="block">
-              <span className="text-xs font-medium text-ink">External URL</span>
+              <span className="text-xs font-medium text-ink">Link</span>
               <input required name="external_url" type="url" placeholder="https://gamma.app/..." className={inputClass} />
             </label>
             <label className="flex items-center gap-2 text-sm text-ink">
@@ -93,6 +89,32 @@ export function ResourceForm({ chapterId }: { chapterId: string }) {
             </label>
           </>
         )}
+
+        <label className="block">
+          <span className="text-xs font-medium text-ink">Title</span>
+          <input required name="title" className={inputClass} />
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium text-ink">
+            Description <span className="text-muted">(optional)</span>
+          </span>
+          <textarea name="description" rows={2} className={inputClass} />
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium text-ink">Type</span>
+          <select name="category" defaultValue="" className={inputClass}>
+            <option value="">— none —</option>
+            {RESOURCE_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <AccessFields paid={paid} onPaid={setPaid} />
 
         <label className="flex items-center gap-2 text-sm text-ink">
           <input name="is_published" type="checkbox" className="size-4 accent-sage" />

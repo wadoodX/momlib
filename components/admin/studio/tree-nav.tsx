@@ -30,8 +30,34 @@ import {
 import type { CourseNode, SubjectNode, ChapterNode } from "@/lib/db/admin-content";
 import type { NodeKind } from "@/lib/admin/studio-actions";
 import { NodeIcon } from "@/components/customization/node-icon";
+import { queryTerms, titleMatches } from "@/lib/search-match";
 
 export type Selection = { kind: NodeKind; id: string } | null;
+
+// Client-side display filter: keep any node that matches, plus its ancestors.
+// When an ancestor matches, all its descendants are kept; otherwise only the
+// matching path. Returns a pruned copy of the tree.
+function filterTree(tree: CourseNode[], terms: string[]): CourseNode[] {
+  const out: CourseNode[] = [];
+  for (const course of tree) {
+    const courseMatch = titleMatches(course.title, terms);
+    const subjects: SubjectNode[] = [];
+    for (const subject of course.subjects) {
+      const subjectMatch = titleMatches(subject.title, terms);
+      const chapters =
+        courseMatch || subjectMatch
+          ? subject.chapters
+          : subject.chapters.filter((ch) => titleMatches(ch.title, terms));
+      if (subjectMatch || courseMatch || chapters.length > 0) {
+        subjects.push({ ...subject, chapters });
+      }
+    }
+    if (courseMatch || subjects.length > 0) {
+      out.push({ ...course, subjects });
+    }
+  }
+  return out;
+}
 
 type Ctx = {
   selected: Selection;
@@ -50,12 +76,18 @@ type Ctx = {
   focusParent: string | null;
   setFocusParent: (id: string | null) => void;
   requestAddChild: (parentId: string) => void;
+  // when true, the tree is showing search results (force-expanded, no drag/add)
+  filtering: boolean;
 };
 
 export function TreeNav({
   tree,
+  query = "",
   ...rest
-}: { tree: CourseNode[] } & Omit<Ctx, "isCollapsed" | "toggle" | "focusParent" | "setFocusParent" | "requestAddChild">) {
+}: { tree: CourseNode[]; query?: string } & Omit<
+  Ctx,
+  "isCollapsed" | "toggle" | "focusParent" | "setFocusParent" | "requestAddChild" | "filtering"
+>) {
   // Start fully collapsed: only top-level courses are visible on load.
   const [collapsed, setCollapsed] = useState<Set<string>>(() => {
     const ids = new Set<string>();
@@ -67,9 +99,14 @@ export function TreeNav({
   });
   const [focusParent, setFocusParent] = useState<string | null>(null);
 
+  const terms = queryTerms(query);
+  const filtering = terms.length > 0;
+  const visibleTree = filtering ? filterTree(tree, terms) : tree;
+
   const ctx: Ctx = {
     ...rest,
-    isCollapsed: (id) => collapsed.has(id),
+    // While filtering, everything is force-expanded so matches are visible.
+    isCollapsed: (id) => !filtering && collapsed.has(id),
     toggle: (id) =>
       setCollapsed((prev) => {
         const next = new Set(prev);
@@ -87,14 +124,19 @@ export function TreeNav({
       });
       setFocusParent(parentId);
     },
+    filtering,
   };
+
+  if (filtering && visibleTree.length === 0) {
+    return <p className="px-2 py-6 text-sm text-muted">No matches.</p>;
+  }
 
   return (
     <div className="space-y-1">
-      <SortableGroup items={tree} onReorder={ctx.onReorderCourses}>
+      <SortableGroup items={visibleTree} onReorder={ctx.onReorderCourses} disabled={filtering}>
         {(course) => <CourseRow key={course.id} course={course} ctx={ctx} />}
       </SortableGroup>
-      <QuickAddRow kind="course" parentId={null} indent={0} ctx={ctx} label="Add course" />
+      {!filtering ? <QuickAddRow kind="course" parentId={null} indent={0} ctx={ctx} label="Add course" /> : null}
     </div>
   );
 }
@@ -106,10 +148,16 @@ function CourseRow({ course, ctx }: { course: CourseNode; ctx: Ctx }) {
       <Row kind="course" node={course} depth={0} open={open} ctx={ctx} />
       {open ? (
         <div className="mt-1 space-y-1">
-          <SortableGroup items={course.subjects} onReorder={(items) => ctx.onReorderSubjects(course.id, items)}>
+          <SortableGroup
+            items={course.subjects}
+            onReorder={(items) => ctx.onReorderSubjects(course.id, items)}
+            disabled={ctx.filtering}
+          >
             {(subject) => <SubjectRow key={subject.id} subject={subject} ctx={ctx} />}
           </SortableGroup>
-          <QuickAddRow kind="subject" parentId={course.id} indent={1} ctx={ctx} label="Add subject" />
+          {!ctx.filtering ? (
+            <QuickAddRow kind="subject" parentId={course.id} indent={1} ctx={ctx} label="Add subject" />
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -123,10 +171,16 @@ function SubjectRow({ subject, ctx }: { subject: SubjectNode; ctx: Ctx }) {
       <Row kind="subject" node={subject} depth={1} open={open} ctx={ctx} />
       {open ? (
         <div className="mt-1 space-y-1">
-          <SortableGroup items={subject.chapters} onReorder={(items) => ctx.onReorderChapters(subject.id, items)}>
+          <SortableGroup
+            items={subject.chapters}
+            onReorder={(items) => ctx.onReorderChapters(subject.id, items)}
+            disabled={ctx.filtering}
+          >
             {(chapter) => <Row key={chapter.id} kind="chapter" node={chapter} depth={2} ctx={ctx} />}
           </SortableGroup>
-          <QuickAddRow kind="chapter" parentId={subject.id} indent={2} ctx={ctx} label="Add chapter" />
+          {!ctx.filtering ? (
+            <QuickAddRow kind="chapter" parentId={subject.id} indent={2} ctx={ctx} label="Add chapter" />
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -139,10 +193,12 @@ function SortableGroup<T extends { id: string }>({
   items,
   onReorder,
   children,
+  disabled = false,
 }: {
   items: T[];
   onReorder: (items: T[]) => void;
   children: (item: T) => ReactNode;
+  disabled?: boolean;
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -160,7 +216,7 @@ function SortableGroup<T extends { id: string }>({
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy} disabled={disabled}>
         {items.map((item) => children(item))}
       </SortableContext>
     </DndContext>
@@ -192,7 +248,7 @@ function Row({
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: node.id,
-    disabled: editing,
+    disabled: editing || ctx.filtering,
   });
 
   useEffect(() => {
@@ -218,7 +274,7 @@ function Row({
             isDragging && "opacity-60",
           )}
         >
-          {!editing ? (
+          {!editing && !ctx.filtering ? (
             <button
               type="button"
               aria-label="Drag to reorder"
