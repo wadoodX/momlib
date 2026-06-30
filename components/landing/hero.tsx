@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Navbar5 } from "@/components/ui/navbar-5";
 
 // On-load fade+rise is pure CSS (`.hero-rise` in globals.css) with a per-element
 // stagger via inline animation-delay — so the content (incl. the LCP <h1>) ships
@@ -8,19 +7,15 @@ import { Navbar5 } from "@/components/ui/navbar-5";
 export function Hero() {
   return (
     <section className="relative isolate flex min-h-[92vh] flex-col overflow-hidden bg-transparent text-ink">
-      {/* soft corner glows (the lanterns themselves are the page-wide backdrop) */}
+      {/* soft corner glows give the hero some warmth on the plain paper surface */}
       <div className="pointer-events-none absolute -left-32 -top-24 h-96 w-96 rounded-full bg-sage/15 blur-3xl" />
       <div className="pointer-events-none absolute -right-24 top-40 h-80 w-80 rounded-full bg-gold/10 blur-3xl" />
 
-      {/* theme-aware scrim keeps the headline readable over the lantern glow */}
+      {/* theme-aware scrim + grain for a calm, textured background */}
       <div className="hero-scrim pointer-events-none absolute inset-0 z-0" />
       <div className="grain pointer-events-none absolute inset-0 z-0 opacity-[0.04] mix-blend-multiply" />
 
-      <div className="relative z-10">
-        <Navbar5 />
-      </div>
-
-      <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-6 pb-24 pt-12 text-center">
+      <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-6 pb-24 pt-16 text-center">
         <p
           style={{ animationDelay: "0.04s" }}
           className="hero-rise text-xs font-semibold uppercase tracking-[0.35em] text-gold"
