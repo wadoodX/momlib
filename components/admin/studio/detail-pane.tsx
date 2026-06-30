@@ -458,7 +458,9 @@ function TypeBox({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-2xl border bg-card p-4 transition",
+        // transition-colors (not transition) so the selection ring snaps on
+        // instantly while hover colors stay smooth.
+        "flex flex-col rounded-2xl border bg-card p-4 transition-colors",
         isAddTarget ? "border-sage ring-2 ring-sage" : "border-line",
       )}
     >
@@ -731,7 +733,7 @@ function OtherResourceItem({
       onClick={onSelect}
       aria-pressed={selected}
       className={cn(
-        "flex w-full items-start gap-3 rounded-2xl border bg-card p-4 text-left transition",
+        "flex w-full items-start gap-3 rounded-2xl border bg-card p-4 text-left transition-colors",
         selected ? "border-sage ring-2 ring-sage" : "border-line hover:border-sage",
       )}
     >
