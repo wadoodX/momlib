@@ -8,6 +8,9 @@ alter table public.resources
   add column if not exists is_paid boolean not null default false,
   add column if not exists payhip_url text;
 
+-- Constraint adds are wrapped with `drop … if exists` so this migration is
+-- idempotent (safe to re-run via `supabase db push`).
+alter table public.resources drop constraint if exists resources_category_check;
 alter table public.resources
   add constraint resources_category_check
   check (
@@ -21,6 +24,7 @@ alter table public.resources
 -- Relax the original "must have a file or a link" check to also accept a
 -- Payhip-only product. Drop the auto-named table check, then re-add a named one.
 alter table public.resources drop constraint if exists resources_check;
+alter table public.resources drop constraint if exists resources_location_check;
 alter table public.resources
   add constraint resources_location_check
   check (
@@ -30,6 +34,7 @@ alter table public.resources
   );
 
 -- A paid resource must carry a Payhip buy URL (the locking UI relies on it).
+alter table public.resources drop constraint if exists resources_paid_requires_payhip;
 alter table public.resources
   add constraint resources_paid_requires_payhip
   check (is_paid = false or payhip_url is not null);
