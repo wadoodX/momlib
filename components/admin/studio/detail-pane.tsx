@@ -19,10 +19,10 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2 } from "lucide-react";
+import { GripVertical, Trash2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { updateCourse, updateSubject, updateChapter, updateResource, deleteResource } from "@/lib/admin/content-actions";
-import { deleteNode, listChapterResources, reorder, type NodeKind } from "@/lib/admin/studio-actions";
+import { deleteNode, listChapterResources, reorder, setPublished, type NodeKind } from "@/lib/admin/studio-actions";
 import { RESOURCE_CATEGORIES, categoryMeta, resourceTypeLabel } from "@/lib/resource-meta";
 import type { Resource } from "@/lib/db/content";
 import type { CourseNode, SubjectNode, ChapterNode } from "@/lib/db/admin-content";
@@ -58,7 +58,24 @@ const KIND_LABEL: Record<NodeKind, string> = { course: "Course", subject: "Subje
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-line bg-paper-soft px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted focus:border-sage";
 
-export function DetailPane({ selected, onDeleted }: { selected: SelectedNode; onDeleted: () => void }) {
+export function DetailPane({
+  selected,
+  trail = [],
+  onDeleted,
+}: {
+  selected: SelectedNode;
+  trail?: string[];
+  onDeleted: () => void;
+}) {
+  // Chapters get the simple, student-like view (header + resources); courses and
+  // subjects keep the settings form (they carry slug + color/icon).
+  if (selected.kind === "chapter") {
+    return <ChapterDetail node={selected.node} trail={trail} onDeleted={onDeleted} />;
+  }
+  return <NodeSettings selected={selected} onDeleted={onDeleted} />;
+}
+
+function NodeSettings({ selected, onDeleted }: { selected: SelectedNode; onDeleted: () => void }) {
   const { kind, node } = selected;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -155,8 +172,141 @@ export function DetailPane({ selected, onDeleted }: { selected: SelectedNode; on
           </button>
         </div>
       </form>
+    </div>
+  );
+}
 
-      {kind === "chapter" ? <ResourcesSection chapterId={node.id} /> : null}
+/* ---------- chapter: clean header + resources ---------- */
+
+function ChapterDetail({
+  node,
+  trail,
+  onDeleted,
+}: {
+  node: ChapterNode;
+  trail: string[];
+  onDeleted: () => void;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function save(formData: FormData) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await updateChapter(formData);
+        setEditing(false);
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not save.");
+      }
+    });
+  }
+
+  function togglePublish() {
+    startTransition(async () => {
+      await setPublished("chapter", node.id, !node.is_published);
+      router.refresh();
+    });
+  }
+
+  function remove() {
+    if (!window.confirm("Delete this chapter? Everything inside it will be removed too.")) return;
+    startTransition(async () => {
+      await deleteNode("chapter", node.id);
+      onDeleted();
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Read-only header — breadcrumb, title, subtitle — with quiet actions. */}
+      <div>
+        {trail.length > 0 ? (
+          <p className="text-xs uppercase tracking-[0.18em] text-muted">{trail.join(" / ")}</p>
+        ) : null}
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-2xl font-semibold text-ink">{node.title}</h2>
+            {node.description ? <p className="mt-1 text-sm leading-6 text-muted">{node.description}</p> : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={togglePublish}
+              disabled={pending}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60",
+                node.is_published
+                  ? "border-sage/40 bg-sage/10 text-sage-deep"
+                  : "border-line text-muted hover:text-ink",
+              )}
+            >
+              {node.is_published ? "Published" : "Draft"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing((v) => !v)}
+              aria-label="Edit details"
+              className="rounded-lg border border-line p-2 text-muted transition hover:text-ink"
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={pending}
+              aria-label="Delete chapter"
+              className="rounded-lg border border-line p-2 text-muted transition hover:border-destructive hover:text-destructive disabled:opacity-60"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit details — collapsed by default so the default view stays simple. */}
+      {editing ? (
+        <form action={save} className="space-y-3 rounded-2xl border border-line bg-card p-5">
+          <input type="hidden" name="chapter_id" value={node.id} />
+          <input type="hidden" name="order_index" value={node.order_index} />
+          <label className="block">
+            <span className="text-xs font-medium text-ink">Title</span>
+            <input required name="title" defaultValue={node.title} className={inputClass} />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-ink">Subtitle</span>
+            <input
+              name="description"
+              defaultValue={node.description ?? ""}
+              placeholder="e.g. Hadith 680–710 · etiquette of companionship"
+              className={inputClass}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-ink">Slug</span>
+            <input name="slug" defaultValue={node.slug} className={inputClass} />
+          </label>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={pending}
+              className="rounded-lg bg-sage px-4 py-2 text-xs font-semibold text-paper transition hover:bg-sage-deep disabled:opacity-60"
+            >
+              Save
+            </button>
+            <button type="button" onClick={() => setEditing(false)} className="text-xs text-muted transition hover:text-ink">
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      <ResourcesSection chapterId={node.id} />
     </div>
   );
 }

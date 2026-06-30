@@ -167,6 +167,7 @@ export function ContentStudio({ tree: initialTree }: { tree: CourseNode[] }) {
   }
 
   const selected = findNode(tree, selection);
+  const trail = nodeTrail(tree, selection);
 
   return (
     <div
@@ -227,7 +228,12 @@ export function ContentStudio({ tree: initialTree }: { tree: CourseNode[] }) {
 
       <div className="min-w-0">
         {selected ? (
-          <DetailPane key={`${selected.kind}:${selected.node.id}`} selected={selected} onDeleted={clearSelection} />
+          <DetailPane
+            key={`${selected.kind}:${selected.node.id}`}
+            selected={selected}
+            trail={trail}
+            onDeleted={clearSelection}
+          />
         ) : (
           <div className="flex min-h-[50vh] flex-col items-center justify-center rounded-3xl border border-dashed border-line bg-paper-soft/50 p-10 text-center">
             <span className="flex size-12 items-center justify-center rounded-full bg-sage/10 text-sage">
@@ -261,4 +267,20 @@ function findNode(tree: CourseNode[], selection: Selection): SelectedNode | null
     }
   }
   return null;
+}
+
+// Ancestor titles for the selected node's breadcrumb: [] for a course,
+// [course] for a subject, [course, subject] for a chapter.
+function nodeTrail(tree: CourseNode[], selection: Selection): string[] {
+  if (!selection) return [];
+  for (const course of tree) {
+    if (selection.kind === "course" && course.id === selection.id) return [];
+    for (const subject of course.subjects) {
+      if (selection.kind === "subject" && subject.id === selection.id) return [course.title];
+      for (const chapter of subject.chapters) {
+        if (selection.kind === "chapter" && chapter.id === selection.id) return [course.title, subject.title];
+      }
+    }
+  }
+  return [];
 }
