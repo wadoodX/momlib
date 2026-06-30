@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Pencil, Upload, Link2 } from "lucide-react";
+import { Trash2, Pencil, Upload, Link2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   updateCourse,
@@ -14,7 +14,7 @@ import {
   createLinkResource,
 } from "@/lib/admin/content-actions";
 import { deleteNode, listChapterResources, setPublished, type NodeKind } from "@/lib/admin/studio-actions";
-import { RESOURCE_CATEGORIES, categoryMeta, resourceTypeLabel, type ResourceCategory } from "@/lib/resource-meta";
+import { categoryMeta, resourceTypeLabel, type ResourceCategory } from "@/lib/resource-meta";
 import type { Resource } from "@/lib/db/content";
 import type { CourseNode, SubjectNode, ChapterNode } from "@/lib/db/admin-content";
 import { CustomizationFields } from "./customization-fields";
@@ -317,14 +317,16 @@ function ChapterDetail({
 
 /* ---------- resources: a fixed grid of 6 boxes per chapter ---------- */
 
-type Selected = { kind: "slot"; category: ResourceCategory } | { kind: "other"; id: string };
+// The set of box categories, for quick membership checks.
+const SLOT_CATEGORIES = new Set<ResourceCategory>(RESOURCE_SLOTS.map((s) => s.category));
+
+type Selected = { kind: "type"; category: ResourceCategory } | { kind: "resource"; id: string };
 
 function ResourcesSection({ chapterId }: { chapterId: string }) {
   const [resources, setResources] = useState<Resource[] | null>(null);
-  // Which target the always-visible "Add resource" panel acts on: one of the 6
-  // boxes (by category) or a leftover "other" resource (by id). Defaults to the
-  // first box so the panel is immediately usable.
-  const [selected, setSelected] = useState<Selected>({ kind: "slot", category: RESOURCE_SLOTS[0].category });
+  // What the always-visible panel acts on: a type box (to add to it) or a
+  // specific resource (to edit). Defaults to the first type so adding is ready.
+  const [selected, setSelected] = useState<Selected>({ kind: "type", category: RESOURCE_SLOTS[0].category });
 
   // DetailPane is keyed per chapter in the parent, so this mounts fresh with
   // resources === null (loading) and just fetches once.
@@ -346,39 +348,47 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
     return <p className="text-sm text-muted">Loading resources…</p>;
   }
 
-  // Each box shows the first resource of its category. Anything left over (no
-  // category, a non-box category, or a duplicate) shows under "Other resources"
-  // so existing/legacy content is never hidden.
-  const used = new Set<string>();
-  const bySlot = new Map<ResourceCategory, Resource>();
-  for (const slot of RESOURCE_SLOTS) {
-    const match = resources.find((r) => r.category === slot.category && !used.has(r.id));
-    if (match) {
-      bySlot.set(slot.category, match);
-      used.add(match.id);
-    }
+  // Group resources under their type box. Anything with no/other category shows
+  // under "Other resources" so existing/legacy content is never hidden.
+  const byCategory = new Map<ResourceCategory, Resource[]>();
+  for (const slot of RESOURCE_SLOTS) byCategory.set(slot.category, []);
+  const others: Resource[] = [];
+  for (const r of resources) {
+    const cat = r.category as ResourceCategory | null;
+    if (cat && SLOT_CATEGORIES.has(cat)) byCategory.get(cat)!.push(r);
+    else others.push(r);
   }
-  const others = resources.filter((r) => !used.has(r.id));
+
+  const selectedResource = selected.kind === "resource" ? resources.find((r) => r.id === selected.id) ?? null : null;
+  const selectedSlot = selected.kind === "type" ? RESOURCE_SLOTS.find((s) => s.category === selected.category)! : null;
 
   return (
     <section className="space-y-5">
       <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-gold">Resources</h3>
 
-      {/* Select a box (highlights it); the panel below acts on the selection. */}
+      {/* Fixed type boxes. Each lists its named resources; "Add to …" targets it. */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {RESOURCE_SLOTS.map((slot) => (
-          <ResourceBox
+          <TypeBox
             key={slot.category}
             slot={slot}
-            resource={bySlot.get(slot.category) ?? null}
-            selected={selected.kind === "slot" && selected.category === slot.category}
-            onSelect={() => setSelected({ kind: "slot", category: slot.category })}
+            resources={byCategory.get(slot.category)!}
+            isAddTarget={selected.kind === "type" && selected.category === slot.category}
+            selectedResourceId={selected.kind === "resource" ? selected.id : null}
+            onAddTo={() => setSelected({ kind: "type", category: slot.category })}
+            onSelectResource={(id) => setSelected({ kind: "resource", id })}
           />
         ))}
       </div>
 
       {/* Always-available add / edit panel for the current selection. */}
-      <ResourcePanel chapterId={chapterId} selected={selected} bySlot={bySlot} others={others} onChanged={refetch} />
+      <ResourcePanel
+        chapterId={chapterId}
+        slot={selectedSlot}
+        resource={selectedResource}
+        nextOrderIndex={resources.length}
+        onChanged={refetch}
+      />
 
       {others.length > 0 ? (
         <div className="space-y-2 pt-2">
@@ -388,8 +398,8 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
               <OtherResourceItem
                 key={r.id}
                 resource={r}
-                selected={selected.kind === "other" && selected.id === r.id}
-                onSelect={() => setSelected({ kind: "other", id: r.id })}
+                selected={selected.kind === "resource" && selected.id === r.id}
+                onSelect={() => setSelected({ kind: "resource", id: r.id })}
               />
             ))}
           </div>
@@ -399,118 +409,123 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
   );
 }
 
-// Resolves the current selection to the right form: Add (empty box), or Edit
-// (a filled box / an "other" resource). Always rendered, so the section is
-// "always available" below the boxes.
+// Renders the right form for the selection: Add (a type box is selected) or
+// Edit (a resource is selected). Always rendered below the boxes.
 function ResourcePanel({
   chapterId,
-  selected,
-  bySlot,
-  others,
+  slot,
+  resource,
+  nextOrderIndex,
   onChanged,
 }: {
   chapterId: string;
-  selected: Selected;
-  bySlot: Map<ResourceCategory, Resource>;
-  others: Resource[];
+  slot: { category: ResourceCategory; name: string } | null;
+  resource: Resource | null;
+  nextOrderIndex: number;
   onChanged: () => void;
 }) {
-  if (selected.kind === "slot") {
-    const slot = RESOURCE_SLOTS.find((s) => s.category === selected.category)!;
-    const resource = bySlot.get(selected.category) ?? null;
-    if (resource) {
-      return <EditPanel key={resource.id} resource={resource} headerLabel={slot.name} allowMove={false} onChanged={onChanged} />;
-    }
-    return (
-      <AddPanel
-        key={`add:${slot.category}`}
-        chapterId={chapterId}
-        slot={slot}
-        slotIndex={RESOURCE_SLOTS.indexOf(slot)}
-        onChanged={onChanged}
-      />
-    );
+  if (resource) {
+    return <EditPanel key={resource.id} resource={resource} onChanged={onChanged} />;
   }
-
-  const resource = others.find((r) => r.id === selected.id);
-  if (!resource) {
-    return (
-      <div className="rounded-2xl border border-dashed border-line bg-paper-soft/50 p-5 text-sm text-muted">
-        Select a box above to add a resource.
-      </div>
-    );
+  if (slot) {
+    return <AddPanel key={`add:${slot.category}`} chapterId={chapterId} slot={slot} orderIndex={nextOrderIndex} onChanged={onChanged} />;
   }
-  return <EditPanel key={resource.id} resource={resource} headerLabel="resource" allowMove onChanged={onChanged} />;
-}
-
-// A box: just displays its state and selects on click — no form opens inside it.
-function ResourceBox({
-  slot,
-  resource,
-  selected,
-  onSelect,
-}: {
-  slot: { category: ResourceCategory; name: string };
-  resource: Resource | null;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const Icon = categoryMeta(slot.category).icon;
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      className={cn(
-        "flex min-h-[7rem] w-full flex-col items-start gap-2 rounded-2xl border p-4 text-left transition",
-        selected
-          ? "border-sage bg-card ring-2 ring-sage"
-          : resource
-            ? "border-line bg-card hover:border-sage"
-            : "border-dashed border-line bg-paper-soft/40 hover:border-sage",
-      )}
-    >
-      <span
-        className={cn(
-          "flex size-9 items-center justify-center rounded-xl",
-          resource ? (resource.is_paid ? "bg-gold/15 text-gold" : "bg-sage/15 text-sage-deep") : "bg-sage/10 text-muted",
-        )}
-      >
-        <Icon className="size-4.5" />
-      </span>
-      {resource ? (
-        <>
-          <span className="block w-full truncate font-semibold text-ink">{resource.title}</span>
-          <span className="block w-full truncate text-xs text-muted">
-            {resourceTypeLabel(resource.resource_type)} · {accessLabel(resource)}
-          </span>
-        </>
-      ) : (
-        <>
-          <span className="font-semibold text-ink">{slot.name}</span>
-          <span className="text-xs text-muted">Empty</span>
-        </>
-      )}
-      {resource && !resource.is_published ? (
-        <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted">Draft</span>
-      ) : null}
-    </button>
+    <div className="rounded-2xl border border-dashed border-line bg-paper-soft/50 p-5 text-sm text-muted">
+      Select a box above to add a resource.
+    </div>
   );
 }
 
-// The always-visible "Add resource" panel, targeting the selected empty box.
+// A fixed type box: its label never changes. Lists the named resources of that
+// type and an "Add to …" action; clicking a resource selects it for editing.
+function TypeBox({
+  slot,
+  resources,
+  isAddTarget,
+  selectedResourceId,
+  onAddTo,
+  onSelectResource,
+}: {
+  slot: { category: ResourceCategory; name: string };
+  resources: Resource[];
+  isAddTarget: boolean;
+  selectedResourceId: string | null;
+  onAddTo: () => void;
+  onSelectResource: (id: string) => void;
+}) {
+  const Icon = categoryMeta(slot.category).icon;
+  return (
+    <div
+      className={cn(
+        // transition-colors (not transition) so the selection ring snaps on
+        // instantly while hover colors stay smooth.
+        "flex flex-col rounded-2xl border bg-card p-4 transition-colors",
+        isAddTarget ? "border-sage ring-2 ring-sage" : "border-line",
+      )}
+    >
+      {/* The whole header is clickable to select this type (so the panel below
+          targets it). Resource rows below are separate buttons (siblings). */}
+      <button type="button" onClick={onAddTo} className="flex w-full items-center gap-2 text-left">
+        <span className="flex size-9 items-center justify-center rounded-xl bg-sage/15 text-sage-deep">
+          <Icon className="size-4.5" />
+        </span>
+        {/* Fixed type name — never replaced by a resource's name. */}
+        <span className="font-semibold text-ink">{slot.name}</span>
+        {resources.length > 0 ? <span className="ml-auto text-xs text-muted">{resources.length}</span> : null}
+      </button>
+
+      {resources.length > 0 ? (
+        <ul className="mt-3 space-y-1">
+          {resources.map((r) => (
+            <li key={r.id}>
+              <button
+                type="button"
+                onClick={() => onSelectResource(r.id)}
+                aria-pressed={selectedResourceId === r.id}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition",
+                  selectedResourceId === r.id ? "bg-sage/10 text-ink" : "text-ink/90 hover:bg-paper-soft",
+                )}
+              >
+                <span className="min-w-0 flex-1 truncate">{r.title}</span>
+                {!r.is_published ? (
+                  <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.12em] text-muted">Draft</span>
+                ) : null}
+                <span className="shrink-0 text-[10px] text-muted">{r.is_paid ? "Paid" : resourceTypeLabel(r.resource_type)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-xs text-muted">Empty</p>
+      )}
+
+      <button
+        type="button"
+        onClick={onAddTo}
+        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-sage transition hover:text-sage-deep"
+      >
+        <Plus className="size-3.5" /> Add to {slot.name}
+      </button>
+    </div>
+  );
+}
+
+// The always-visible "Add resource" panel, targeting the selected type box.
 function AddPanel({
   chapterId,
   slot,
-  slotIndex,
+  orderIndex,
   onChanged,
 }: {
   chapterId: string;
   slot: { category: ResourceCategory; name: string };
-  slotIndex: number;
+  orderIndex: number;
   onChanged: () => void;
 }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const [mode, setMode] = useState<"file" | "link">("file");
   const [paid, setPaid] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -525,6 +540,9 @@ function AddPanel({
         } else {
           await createLinkResource(formData);
         }
+        // Reset so the next item of this type can be added cleanly.
+        formRef.current?.reset();
+        setPaid(false);
         onChanged();
         router.refresh();
       } catch (e) {
@@ -534,11 +552,11 @@ function AddPanel({
   }
 
   return (
-    <form action={submit} className="space-y-3 rounded-2xl border border-dashed border-line bg-paper-soft/50 p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Add resource · {slot.name}</p>
+    <form ref={formRef} action={submit} className="space-y-3 rounded-2xl border border-dashed border-line bg-paper-soft/50 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Add to {slot.name}</p>
       <input type="hidden" name="chapter_id" value={chapterId} />
       <input type="hidden" name="category" value={slot.category} />
-      <input type="hidden" name="order_index" value={slotIndex} />
+      <input type="hidden" name="order_index" value={orderIndex} />
 
       <div className="inline-grid grid-cols-2 gap-1 rounded-xl border border-line bg-paper-soft p-1">
         {(["file", "link"] as const).map((m) => {
@@ -580,8 +598,8 @@ function AddPanel({
       )}
 
       <label className="block">
-        <span className="text-xs font-medium text-ink">Title</span>
-        <input required name="title" defaultValue={slot.name} className={inputClass} />
+        <span className="text-xs font-medium text-ink">Name</span>
+        <input required name="title" placeholder={`e.g. ${slot.name} — week 1`} className={inputClass} />
       </label>
 
       <AccessFields paid={paid} onPaid={setPaid} />
@@ -604,21 +622,10 @@ function AddPanel({
   );
 }
 
-// The always-visible panel when the selected box is filled (or an "other"
-// resource is selected): edit title + access + published, or remove. `allowMove`
-// adds a "Move to box" dropdown (for leftover resources). The file/link itself is
-// changed by removing and re-adding.
-function EditPanel({
-  resource,
-  headerLabel,
-  allowMove,
-  onChanged,
-}: {
-  resource: Resource;
-  headerLabel: string;
-  allowMove: boolean;
-  onChanged: () => void;
-}) {
+// The always-visible panel when a resource is selected: edit its name, which
+// type box it's in, access, and published — or remove it. The file/link itself
+// is changed by removing and re-adding.
+function EditPanel({ resource, onChanged }: { resource: Resource; onChanged: () => void }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [paid, setPaid] = useState(resource.is_paid);
@@ -652,33 +659,29 @@ function EditPanel({
 
   return (
     <form action={save} className="space-y-3 rounded-2xl border border-line bg-card p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Edit · {headerLabel}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Edit resource</p>
       <input type="hidden" name="resource_id" value={resource.id} />
       <input type="hidden" name="chapter_id" value={resource.chapter_id} />
       <input type="hidden" name="order_index" value={resource.order_index} />
       {/* preserve description on edit */}
       <input type="hidden" name="description" value={resource.description ?? ""} />
-      {/* a box resource keeps its category; an "other" resource can be moved */}
-      {!allowMove ? <input type="hidden" name="category" value={resource.category ?? ""} /> : null}
 
       <label className="block">
-        <span className="text-xs font-medium text-ink">Title</span>
+        <span className="text-xs font-medium text-ink">Name</span>
         <input required name="title" defaultValue={resource.title} className={inputClass} />
       </label>
 
-      {allowMove ? (
-        <label className="block">
-          <span className="text-xs font-medium text-ink">Move to box</span>
-          <select name="category" defaultValue={resource.category ?? ""} className={inputClass}>
-            <option value="">— none —</option>
-            {RESOURCE_CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
+      <label className="block">
+        <span className="text-xs font-medium text-ink">Type box</span>
+        <select name="category" defaultValue={resource.category ?? ""} className={inputClass}>
+          <option value="">— none (Other) —</option>
+          {RESOURCE_SLOTS.map((s) => (
+            <option key={s.category} value={s.category}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <AccessFields paid={paid} onPaid={setPaid} defaultPayhipUrl={resource.payhip_url ?? ""} />
 
@@ -730,7 +733,7 @@ function OtherResourceItem({
       onClick={onSelect}
       aria-pressed={selected}
       className={cn(
-        "flex w-full items-start gap-3 rounded-2xl border bg-card p-4 text-left transition",
+        "flex w-full items-start gap-3 rounded-2xl border bg-card p-4 text-left transition-colors",
         selected ? "border-sage ring-2 ring-sage" : "border-line hover:border-sage",
       )}
     >
