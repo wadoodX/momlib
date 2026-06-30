@@ -462,14 +462,16 @@ function TypeBox({
         isAddTarget ? "border-sage ring-2 ring-sage" : "border-line",
       )}
     >
-      <div className="flex items-center gap-2">
+      {/* The whole header is clickable to select this type (so the panel below
+          targets it). Resource rows below are separate buttons (siblings). */}
+      <button type="button" onClick={onAddTo} className="flex w-full items-center gap-2 text-left">
         <span className="flex size-9 items-center justify-center rounded-xl bg-sage/15 text-sage-deep">
           <Icon className="size-4.5" />
         </span>
         {/* Fixed type name — never replaced by a resource's name. */}
         <span className="font-semibold text-ink">{slot.name}</span>
         {resources.length > 0 ? <span className="ml-auto text-xs text-muted">{resources.length}</span> : null}
-      </div>
+      </button>
 
       {resources.length > 0 ? (
         <ul className="mt-3 space-y-1">
