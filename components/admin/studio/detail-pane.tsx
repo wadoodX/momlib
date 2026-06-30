@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Pencil, Plus, Upload, Link2 } from "lucide-react";
+import { Trash2, Pencil, Upload, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   updateCourse,
@@ -317,8 +317,14 @@ function ChapterDetail({
 
 /* ---------- resources: a fixed grid of 6 boxes per chapter ---------- */
 
+type Selected = { kind: "slot"; category: ResourceCategory } | { kind: "other"; id: string };
+
 function ResourcesSection({ chapterId }: { chapterId: string }) {
   const [resources, setResources] = useState<Resource[] | null>(null);
+  // Which target the always-visible "Add resource" panel acts on: one of the 6
+  // boxes (by category) or a leftover "other" resource (by id). Defaults to the
+  // first box so the panel is immediately usable.
+  const [selected, setSelected] = useState<Selected>({ kind: "slot", category: RESOURCE_SLOTS[0].category });
 
   // DetailPane is keyed per chapter in the parent, so this mounts fresh with
   // resources === null (loading) and just fetches once.
@@ -355,28 +361,36 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
   const others = resources.filter((r) => !used.has(r.id));
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-5">
       <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-gold">Resources</h3>
 
+      {/* Select a box (highlights it); the panel below acts on the selection. */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {RESOURCE_SLOTS.map((slot, i) => (
-          <ResourceSlotBox
+        {RESOURCE_SLOTS.map((slot) => (
+          <ResourceBox
             key={slot.category}
             slot={slot}
-            index={i}
-            chapterId={chapterId}
             resource={bySlot.get(slot.category) ?? null}
-            onChanged={refetch}
+            selected={selected.kind === "slot" && selected.category === slot.category}
+            onSelect={() => setSelected({ kind: "slot", category: slot.category })}
           />
         ))}
       </div>
+
+      {/* Always-available add / edit panel for the current selection. */}
+      <ResourcePanel chapterId={chapterId} selected={selected} bySlot={bySlot} others={others} onChanged={refetch} />
 
       {others.length > 0 ? (
         <div className="space-y-2 pt-2">
           <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted">Other resources</p>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {others.map((r) => (
-              <OtherResourceCard key={r.id} resource={r} onChanged={refetch} />
+              <OtherResourceItem
+                key={r.id}
+                resource={r}
+                selected={selected.kind === "other" && selected.id === r.id}
+                onSelect={() => setSelected({ kind: "other", id: r.id })}
+              />
             ))}
           </div>
         </div>
@@ -385,96 +399,116 @@ function ResourcesSection({ chapterId }: { chapterId: string }) {
   );
 }
 
-function ResourceSlotBox({
-  slot,
-  index,
+// Resolves the current selection to the right form: Add (empty box), or Edit
+// (a filled box / an "other" resource). Always rendered, so the section is
+// "always available" below the boxes.
+function ResourcePanel({
   chapterId,
-  resource,
+  selected,
+  bySlot,
+  others,
   onChanged,
 }: {
-  slot: { category: ResourceCategory; name: string };
-  index: number;
   chapterId: string;
-  resource: Resource | null;
+  selected: Selected;
+  bySlot: Map<ResourceCategory, Resource>;
+  others: Resource[];
   onChanged: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const Icon = categoryMeta(slot.category).icon;
-
-  if (!resource) {
-    // Empty box → click to add a file or link.
+  if (selected.kind === "slot") {
+    const slot = RESOURCE_SLOTS.find((s) => s.category === selected.category)!;
+    const resource = bySlot.get(selected.category) ?? null;
+    if (resource) {
+      return <EditPanel key={resource.id} resource={resource} headerLabel={slot.name} allowMove={false} onChanged={onChanged} />;
+    }
     return (
-      <div className="rounded-2xl border border-dashed border-line bg-paper-soft/40">
-        {open ? (
-          <BoxCreateForm
-            chapterId={chapterId}
-            category={slot.category}
-            defaultTitle={slot.name}
-            orderIndex={index}
-            onDone={(added) => {
-              setOpen(false);
-              if (added) onChanged();
-            }}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="flex min-h-[8rem] w-full flex-col items-start gap-3 p-4 text-left transition hover:border-sage"
-          >
-            <span className="flex size-9 items-center justify-center rounded-xl bg-sage/10 text-muted">
-              <Icon className="size-4.5" />
-            </span>
-            <span className="font-semibold text-ink">{slot.name}</span>
-            <span className="mt-auto inline-flex items-center gap-1 text-xs text-muted">
-              <Plus className="size-3.5" /> Add file or link
-            </span>
-          </button>
-        )}
-      </div>
+      <AddPanel
+        key={`add:${slot.category}`}
+        chapterId={chapterId}
+        slot={slot}
+        slotIndex={RESOURCE_SLOTS.indexOf(slot)}
+        onChanged={onChanged}
+      />
     );
   }
 
-  // Filled box → show it; click to edit.
+  const resource = others.find((r) => r.id === selected.id);
+  if (!resource) {
+    return (
+      <div className="rounded-2xl border border-dashed border-line bg-paper-soft/50 p-5 text-sm text-muted">
+        Select a box above to add a resource.
+      </div>
+    );
+  }
+  return <EditPanel key={resource.id} resource={resource} headerLabel="resource" allowMove onChanged={onChanged} />;
+}
+
+// A box: just displays its state and selects on click — no form opens inside it.
+function ResourceBox({
+  slot,
+  resource,
+  selected,
+  onSelect,
+}: {
+  slot: { category: ResourceCategory; name: string };
+  resource: Resource | null;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const Icon = categoryMeta(slot.category).icon;
   return (
-    <div className={cn("rounded-2xl border bg-card transition", open ? "border-sage ring-2 ring-sage" : "border-line")}>
-      <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-start gap-3 p-4 text-left">
-        <span
-          className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-xl",
-            resource.is_paid ? "bg-gold/15 text-gold" : "bg-sage/15 text-sage-deep",
-          )}
-        >
-          <Icon className="size-4.5" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold text-ink">{resource.title}</span>
-          <span className="mt-0.5 block truncate text-xs text-muted">
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={cn(
+        "flex min-h-[7rem] w-full flex-col items-start gap-2 rounded-2xl border p-4 text-left transition",
+        selected
+          ? "border-sage bg-card ring-2 ring-sage"
+          : resource
+            ? "border-line bg-card hover:border-sage"
+            : "border-dashed border-line bg-paper-soft/40 hover:border-sage",
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-9 items-center justify-center rounded-xl",
+          resource ? (resource.is_paid ? "bg-gold/15 text-gold" : "bg-sage/15 text-sage-deep") : "bg-sage/10 text-muted",
+        )}
+      >
+        <Icon className="size-4.5" />
+      </span>
+      {resource ? (
+        <>
+          <span className="block w-full truncate font-semibold text-ink">{resource.title}</span>
+          <span className="block w-full truncate text-xs text-muted">
             {resourceTypeLabel(resource.resource_type)} · {accessLabel(resource)}
           </span>
-        </span>
-        {!resource.is_published ? (
-          <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.15em] text-muted">Draft</span>
-        ) : null}
-      </button>
-      {open ? <BoxEditForm resource={resource} onChanged={onChanged} /> : null}
-    </div>
+        </>
+      ) : (
+        <>
+          <span className="font-semibold text-ink">{slot.name}</span>
+          <span className="text-xs text-muted">Empty</span>
+        </>
+      )}
+      {resource && !resource.is_published ? (
+        <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted">Draft</span>
+      ) : null}
+    </button>
   );
 }
 
-// Inline "upload a file or add a link + title" form shown inside an empty box.
-function BoxCreateForm({
+// The always-visible "Add resource" panel, targeting the selected empty box.
+function AddPanel({
   chapterId,
-  category,
-  defaultTitle,
-  orderIndex,
-  onDone,
+  slot,
+  slotIndex,
+  onChanged,
 }: {
   chapterId: string;
-  category: ResourceCategory;
-  defaultTitle: string;
-  orderIndex: number;
-  onDone: (added: boolean) => void;
+  slot: { category: ResourceCategory; name: string };
+  slotIndex: number;
+  onChanged: () => void;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"file" | "link">("file");
@@ -491,7 +525,7 @@ function BoxCreateForm({
         } else {
           await createLinkResource(formData);
         }
-        onDone(true);
+        onChanged();
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not add the resource.");
@@ -500,10 +534,11 @@ function BoxCreateForm({
   }
 
   return (
-    <form action={submit} className="space-y-3 p-4">
+    <form action={submit} className="space-y-3 rounded-2xl border border-dashed border-line bg-paper-soft/50 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Add resource · {slot.name}</p>
       <input type="hidden" name="chapter_id" value={chapterId} />
-      <input type="hidden" name="category" value={category} />
-      <input type="hidden" name="order_index" value={orderIndex} />
+      <input type="hidden" name="category" value={slot.category} />
+      <input type="hidden" name="order_index" value={slotIndex} />
 
       <div className="inline-grid grid-cols-2 gap-1 rounded-xl border border-line bg-paper-soft p-1">
         {(["file", "link"] as const).map((m) => {
@@ -515,12 +550,12 @@ function BoxCreateForm({
               onClick={() => setMode(m)}
               aria-pressed={mode === m}
               className={cn(
-                "flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                "flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium transition-colors",
                 mode === m ? "bg-sage text-paper" : "text-muted hover:text-ink",
               )}
             >
               <Icon className="size-3.5" />
-              {m === "file" ? "File" : "Link"}
+              {m === "file" ? "Upload file" : "Add link"}
             </button>
           );
         })}
@@ -546,7 +581,7 @@ function BoxCreateForm({
 
       <label className="block">
         <span className="text-xs font-medium text-ink">Title</span>
-        <input required name="title" defaultValue={defaultTitle} className={inputClass} />
+        <input required name="title" defaultValue={slot.name} className={inputClass} />
       </label>
 
       <AccessFields paid={paid} onPaid={setPaid} />
@@ -558,26 +593,32 @@ function BoxCreateForm({
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-lg bg-sage px-4 py-2 text-xs font-semibold text-paper transition hover:bg-sage-deep disabled:opacity-60"
-        >
-          {pending ? "Saving…" : "Save"}
-        </button>
-        <button type="button" onClick={() => onDone(false)} className="text-xs text-muted transition hover:text-ink">
-          Cancel
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded-lg bg-sage px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-sage-deep disabled:opacity-60"
+      >
+        {pending ? "Adding…" : "Add resource"}
+      </button>
     </form>
   );
 }
 
-// Inline editor for a filled box: title + access + published, or remove (which
-// empties the box). The category is fixed by the slot, and the file/link itself
-// is replaced by removing and re-adding.
-function BoxEditForm({ resource, onChanged }: { resource: Resource; onChanged: () => void }) {
+// The always-visible panel when the selected box is filled (or an "other"
+// resource is selected): edit title + access + published, or remove. `allowMove`
+// adds a "Move to box" dropdown (for leftover resources). The file/link itself is
+// changed by removing and re-adding.
+function EditPanel({
+  resource,
+  headerLabel,
+  allowMove,
+  onChanged,
+}: {
+  resource: Resource;
+  headerLabel: string;
+  allowMove: boolean;
+  onChanged: () => void;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [paid, setPaid] = useState(resource.is_paid);
@@ -597,7 +638,7 @@ function BoxEditForm({ resource, onChanged }: { resource: Resource; onChanged: (
   }
 
   function remove() {
-    if (!window.confirm("Remove this resource? The box will be empty again.")) return;
+    if (!window.confirm("Remove this resource?")) return;
     const formData = new FormData();
     formData.set("resource_id", resource.id);
     formData.set("chapter_id", resource.chapter_id);
@@ -610,18 +651,34 @@ function BoxEditForm({ resource, onChanged }: { resource: Resource; onChanged: (
   }
 
   return (
-    <form action={save} className="space-y-3 border-t border-line p-4">
+    <form action={save} className="space-y-3 rounded-2xl border border-line bg-card p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Edit · {headerLabel}</p>
       <input type="hidden" name="resource_id" value={resource.id} />
       <input type="hidden" name="chapter_id" value={resource.chapter_id} />
       <input type="hidden" name="order_index" value={resource.order_index} />
-      {/* preserve category (the slot) and description on edit */}
-      <input type="hidden" name="category" value={resource.category ?? ""} />
+      {/* preserve description on edit */}
       <input type="hidden" name="description" value={resource.description ?? ""} />
+      {/* a box resource keeps its category; an "other" resource can be moved */}
+      {!allowMove ? <input type="hidden" name="category" value={resource.category ?? ""} /> : null}
 
       <label className="block">
         <span className="text-xs font-medium text-ink">Title</span>
         <input required name="title" defaultValue={resource.title} className={inputClass} />
       </label>
+
+      {allowMove ? (
+        <label className="block">
+          <span className="text-xs font-medium text-ink">Move to box</span>
+          <select name="category" defaultValue={resource.category ?? ""} className={inputClass}>
+            <option value="">— none —</option>
+            {RESOURCE_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       <AccessFields paid={paid} onPaid={setPaid} defaultPayhipUrl={resource.payhip_url ?? ""} />
 
@@ -655,111 +712,40 @@ function BoxEditForm({ resource, onChanged }: { resource: Resource; onChanged: (
 }
 
 // A leftover resource that doesn't fit one of the 6 boxes (uncategorized/legacy
-// or a duplicate). Editable so it can be moved into a box (set its Type) or removed.
-function OtherResourceCard({ resource, onChanged }: { resource: Resource; onChanged: () => void }) {
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
-  const [paid, setPaid] = useState(resource.is_paid);
-  const [error, setError] = useState<string | null>(null);
+// or a duplicate). Selecting it loads it into the panel above for editing — no
+// form opens inside the card.
+function OtherResourceItem({
+  resource,
+  selected,
+  onSelect,
+}: {
+  resource: Resource;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   const Icon = categoryMeta(resource.category).icon;
-
-  function save(formData: FormData) {
-    setError(null);
-    startTransition(async () => {
-      try {
-        await updateResource(formData);
-        onChanged();
-        router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not save.");
-      }
-    });
-  }
-
-  function remove() {
-    if (!window.confirm("Delete this resource?")) return;
-    const formData = new FormData();
-    formData.set("resource_id", resource.id);
-    formData.set("chapter_id", resource.chapter_id);
-    formData.set("file_path", resource.file_path ?? "");
-    startTransition(async () => {
-      await deleteResource(formData);
-      onChanged();
-      router.refresh();
-    });
-  }
-
   return (
-    <div className={cn("rounded-2xl border bg-card transition", open ? "border-sage ring-2 ring-sage" : "border-line")}>
-      <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-start gap-3 p-4 text-left">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-paper-soft text-muted">
-          <Icon className="size-4.5" />
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={cn(
+        "flex w-full items-start gap-3 rounded-2xl border bg-card p-4 text-left transition",
+        selected ? "border-sage ring-2 ring-sage" : "border-line hover:border-sage",
+      )}
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-paper-soft text-muted">
+        <Icon className="size-4.5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-semibold text-ink">{resource.title}</span>
+        <span className="mt-0.5 block truncate text-xs text-muted">
+          {resourceTypeLabel(resource.resource_type)} · {accessLabel(resource)}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold text-ink">{resource.title}</span>
-          <span className="mt-0.5 block truncate text-xs text-muted">
-            {resourceTypeLabel(resource.resource_type)} · {accessLabel(resource)}
-          </span>
-        </span>
-        {!resource.is_published ? (
-          <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.15em] text-muted">Draft</span>
-        ) : null}
-      </button>
-
-      {open ? (
-        <form action={save} className="space-y-3 border-t border-line p-4">
-          <input type="hidden" name="resource_id" value={resource.id} />
-          <input type="hidden" name="chapter_id" value={resource.chapter_id} />
-          <input type="hidden" name="order_index" value={resource.order_index} />
-          <input type="hidden" name="description" value={resource.description ?? ""} />
-
-          <label className="block">
-            <span className="text-xs font-medium text-ink">Title</span>
-            <input required name="title" defaultValue={resource.title} className={inputClass} />
-          </label>
-
-          <label className="block">
-            <span className="text-xs font-medium text-ink">Move to box</span>
-            <select name="category" defaultValue={resource.category ?? ""} className={inputClass}>
-              <option value="">— none —</option>
-              {RESOURCE_CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <AccessFields paid={paid} onPaid={setPaid} defaultPayhipUrl={resource.payhip_url ?? ""} />
-
-          <label className="flex items-center gap-2 text-sm text-ink">
-            <input name="is_published" type="checkbox" defaultChecked={resource.is_published} className="size-4 accent-sage" />
-            Published
-          </label>
-
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded-lg bg-sage px-4 py-2 text-xs font-semibold text-paper transition hover:bg-sage-deep disabled:opacity-60"
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={remove}
-              disabled={pending}
-              className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-destructive transition hover:text-destructive/80"
-            >
-              <Trash2 className="size-4" />
-              Delete
-            </button>
-          </div>
-        </form>
+      </span>
+      {!resource.is_published ? (
+        <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.15em] text-muted">Draft</span>
       ) : null}
-    </div>
+    </button>
   );
 }
