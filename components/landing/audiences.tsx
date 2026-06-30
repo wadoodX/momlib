@@ -52,7 +52,7 @@ function AudienceCard({ data }: { data: typeof STUDENT }) {
 
 export function Audiences() {
   return (
-    <section className="px-6 py-28 sm:py-32">
+    <section id="who" className="scroll-mt-20 px-6 py-28 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <Reveal className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold">For everyone</p>
