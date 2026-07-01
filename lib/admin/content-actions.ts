@@ -471,7 +471,7 @@ function getSlug(formData: FormData, fallback: string) {
 }
 
 function getRequiredUrl(formData: FormData, name: string) {
-  const value = getRequiredString(formData, name);
+  const value = extractEmbedUrl(getRequiredString(formData, name));
 
   let url: URL;
   try {
@@ -485,6 +485,15 @@ function getRequiredUrl(formData: FormData, name: string) {
   }
 
   return url.toString();
+}
+
+// If an admin pasted a full "<iframe … src="…">" embed snippet (e.g. Gamma's
+// embed code), pull out just the src URL; otherwise return the value unchanged.
+// We only ever store/render the extracted URL — never the raw HTML.
+function extractEmbedUrl(raw: string): string {
+  const value = raw.trim();
+  const match = value.match(/<iframe[^>]*\bsrc\s*=\s*["']([^"']+)["']/i);
+  return match ? match[1].trim() : value;
 }
 
 function sanitizeFileName(value: string) {

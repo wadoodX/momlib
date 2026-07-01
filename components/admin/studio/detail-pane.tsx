@@ -637,12 +637,18 @@ function AddPanel({
       ) : (
         <>
           <label className="block">
-            <span className="text-xs font-medium text-ink">Link</span>
-            <input required name="external_url" type="url" placeholder="https://…" className={inputClass} />
+            <span className="text-xs font-medium text-ink">Link or embed code</span>
+            <input
+              required
+              name="external_url"
+              type="text"
+              placeholder="https://…  or paste a Gamma <iframe> embed"
+              className={inputClass}
+            />
           </label>
           <label className="flex items-center gap-2 text-sm text-ink">
             <input name="is_gamma" type="checkbox" className="size-4 accent-sage" />
-            Gamma presentation
+            Gamma presentation (embeds inline)
           </label>
         </>
       )}

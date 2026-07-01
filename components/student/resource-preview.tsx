@@ -6,7 +6,7 @@ import type { ResourceLink } from "@/lib/db/content";
 
 export type Preview = {
   label: string;
-  type: "image" | "pdf" | "video" | "office" | "gamma" | "link";
+  type: "image" | "pdf" | "video" | "office" | "gamma" | "gamma-embed" | "link";
   src: string | null;
 };
 
@@ -19,9 +19,24 @@ export function isGammaUrl(value: string) {
   }
 }
 
+/** Gamma's dedicated embed URL (gamma.app/embed/…) — unlike a normal Gamma doc
+ *  link, this one is designed to be iframed, so we can show it inline. */
+export function isGammaEmbedUrl(value: string) {
+  try {
+    const u = new URL(value);
+    return (u.hostname === "gamma.app" || u.hostname.endsWith(".gamma.app")) && u.pathname.startsWith("/embed/");
+  } catch {
+    return false;
+  }
+}
+
 export function getResourcePreview(resource: ResourceLink): Preview {
   if (!resource.href) {
     return { label: resource.resource_type, type: "link", src: null };
+  }
+
+  if (isGammaEmbedUrl(resource.href)) {
+    return { label: "Gamma presentation", type: "gamma-embed", src: resource.href };
   }
 
   if (isGammaUrl(resource.href)) {
@@ -76,6 +91,21 @@ export function ResourcePreview({
         >
           Open presentation
         </a>
+      </div>
+    );
+  }
+
+  if (preview.type === "gamma-embed" && preview.src) {
+    return (
+      <div className="mt-5 overflow-hidden rounded-2xl border border-line bg-paper-soft">
+        <iframe
+          title={resource.title || "Gamma presentation"}
+          src={preview.src}
+          loading="lazy"
+          className="aspect-video w-full"
+          allow="fullscreen"
+          referrerPolicy="no-referrer"
+        />
       </div>
     );
   }
