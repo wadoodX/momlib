@@ -374,17 +374,22 @@ export async function updateResource(formData: FormData) {
   const resourceId = getRequiredString(formData, "resource_id");
   const chapterId = getRequiredString(formData, "chapter_id");
 
-  const { error } = await supabase
-    .from("resources")
-    .update({
-      title: getRequiredString(formData, "title"),
-      description: getOptionalString(formData, "description"),
-      category: getCategory(formData),
-      order_index: getNumber(formData, "order_index"),
-      is_published: getCheckbox(formData, "is_published"),
-      ...getPaidFields(formData),
-    })
-    .eq("id", resourceId);
+  const update: Database["public"]["Tables"]["resources"]["Update"] = {
+    title: getRequiredString(formData, "title"),
+    description: getOptionalString(formData, "description"),
+    category: getCategory(formData),
+    order_index: getNumber(formData, "order_index"),
+    is_published: getCheckbox(formData, "is_published"),
+    ...getPaidFields(formData),
+  };
+
+  // Link resources can have their URL edited in place (the field is only rendered
+  // for links; a blank value is ignored so we never null out the location).
+  if (getOptionalString(formData, "external_url")) {
+    update.external_url = getRequiredUrl(formData, "external_url");
+  }
+
+  const { error } = await supabase.from("resources").update(update).eq("id", resourceId);
 
   if (error) {
     throw new Error(error.message);
