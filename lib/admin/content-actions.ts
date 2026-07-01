@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { slugify, uniqueSlug } from "@/lib/admin/slug";
 import { deleteNodeAndStorage } from "@/lib/admin/storage-cleanup";
-import { uploadResource, removeResources } from "@/lib/storage/resources";
+import { uploadResource, removeResources, signedUploadUrl } from "@/lib/storage/resources";
 import { isColor, isIcon } from "@/lib/customization";
 import { isCategory } from "@/lib/resource-meta";
 import type { Database } from "@/types/database";
@@ -255,7 +255,7 @@ export async function createFileResource(formData: FormData) {
   const resourceId = crypto.randomUUID();
   const fileName = sanitizeFileName(file.name);
   const filePath = await buildResourcePath(supabase, chapterId, resourceId, fileName);
-  const resourceType = inferResourceType(file);
+  const resourceType = inferResourceType(file.type, file.name);
 
   // Validate everything that can throw (e.g. paid → required Payhip URL) BEFORE
   // uploading, so a validation failure never orphans uploaded bytes.
@@ -281,6 +281,85 @@ export async function createFileResource(formData: FormData) {
 
   if (error) {
     await removeResources(supabase, [filePath]);
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/chapters/${chapterId}`);
+}
+
+// Presign a direct browser->R2 upload for a resource file. Validates the file up
+// front (admin, size, type) and returns a short-lived PUT URL + the storage key.
+// When R2 isn't configured, returns { mode: "server" } so the client falls back to
+// sending the file through createFileResource (fine for local/Supabase, small files).
+export async function createResourceUpload(input: {
+  chapterId: string;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+}): Promise<{ mode: "direct"; uploadUrl: string; key: string; contentType: string } | { mode: "server" }> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const size = Number(input.fileSize);
+  if (!Number.isFinite(size) || size <= 0) {
+    throw new Error("Choose a file to upload.");
+  }
+  if (size > maxUploadSize) {
+    throw new Error("File uploads must be 50MB or smaller.");
+  }
+  // Reject unsupported types before signing (throws).
+  inferResourceType(input.contentType ?? "", input.fileName ?? "");
+
+  const resourceId = crypto.randomUUID();
+  const fileName = sanitizeFileName(input.fileName ?? "resource");
+  const key = await buildResourcePath(supabase, input.chapterId, resourceId, fileName);
+  const contentType = input.contentType || "application/octet-stream";
+
+  const uploadUrl = await signedUploadUrl(key, contentType, 60 * 10); // 10 min
+  if (!uploadUrl) {
+    return { mode: "server" };
+  }
+  return { mode: "direct", uploadUrl, key, contentType };
+}
+
+// Record a resource row AFTER the browser uploaded the file directly to storage
+// (createResourceUpload). No file bytes pass through here — just metadata — so it
+// isn't subject to the request-body size limit. `resource_type` is re-inferred
+// server-side (never trusted from the client), and the key must belong to this
+// chapter's storage prefix.
+export async function recordFileResource(formData: FormData) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const chapterId = getRequiredString(formData, "chapter_id");
+  const key = getRequiredString(formData, "file_path");
+  const fileName = getRequiredString(formData, "file_name");
+  const mimeType = getOptionalString(formData, "mime_type");
+  const fileSize = getNumber(formData, "file_size");
+
+  const prefix = await resourceKeyPrefix(supabase, chapterId);
+  if (!key.startsWith(prefix)) {
+    throw new Error("Invalid upload key.");
+  }
+
+  const { error } = await supabase.from("resources").insert({
+    chapter_id: chapterId,
+    title: getRequiredString(formData, "title"),
+    description: getOptionalString(formData, "description"),
+    resource_type: inferResourceType(mimeType ?? "", fileName),
+    category: getCategory(formData),
+    file_path: key,
+    file_name: fileName,
+    file_size: fileSize > 0 ? fileSize : null,
+    mime_type: mimeType,
+    order_index: getNumber(formData, "order_index"),
+    is_published: getCheckbox(formData, "is_published"),
+    ...getPaidFields(formData),
+  });
+
+  if (error) {
+    // The bytes are already in storage; clean them up so we don't orphan them.
+    await removeResources(supabase, [key]);
     throw new Error(error.message);
   }
 
@@ -417,25 +496,23 @@ function isGammaUrl(value: string) {
   return hostname === "gamma.app" || hostname.endsWith(".gamma.app");
 }
 
-function inferResourceType(file: File): ResourceType {
-  const mime = file.type;
-  const name = file.name.toLowerCase();
+function inferResourceType(mime: string, name: string): ResourceType {
+  const lower = name.toLowerCase();
 
-  if (mime === "application/pdf" || name.endsWith(".pdf")) return "pdf";
-  if (mime.includes("powerpoint") || name.endsWith(".ppt") || name.endsWith(".pptx")) return "ppt";
-  if (mime.includes("word") || name.endsWith(".doc") || name.endsWith(".docx")) return "doc";
+  if (mime === "application/pdf" || lower.endsWith(".pdf")) return "pdf";
+  if (mime.includes("powerpoint") || lower.endsWith(".ppt") || lower.endsWith(".pptx")) return "ppt";
+  if (mime.includes("word") || lower.endsWith(".doc") || lower.endsWith(".docx")) return "doc";
   if (mime.startsWith("image/")) return "image";
   if (mime.startsWith("video/")) return "video";
 
   throw new Error("Unsupported file type. Upload PDF, PPT/PPTX, DOC/DOCX, images, or videos.");
 }
 
-async function buildResourcePath(
+/** Storage-key prefix for a chapter's files: courses/…/subjects/…/chapters/…/. */
+async function resourceKeyPrefix(
   supabase: Awaited<ReturnType<typeof createClient>>,
   chapterId: string,
-  resourceId: string,
-  fileName: string,
-) {
+): Promise<string> {
   const { data: chapter, error: chapterError } = await supabase
     .from("chapters")
     .select("id, subject_id")
@@ -456,5 +533,15 @@ async function buildResourcePath(
     throw new Error(subjectError.message);
   }
 
-  return `courses/${subject.course_id}/subjects/${subject.id}/chapters/${chapter.id}/${resourceId}-${fileName}`;
+  return `courses/${subject.course_id}/subjects/${subject.id}/chapters/${chapter.id}/`;
+}
+
+async function buildResourcePath(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  chapterId: string,
+  resourceId: string,
+  fileName: string,
+) {
+  const prefix = await resourceKeyPrefix(supabase, chapterId);
+  return `${prefix}${resourceId}-${fileName}`;
 }
