@@ -81,6 +81,18 @@ export async function r2SignedUrl(key: string, expiresIn: number): Promise<strin
   return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn });
 }
 
+/** A short-lived presigned PUT URL so the browser can upload straight to R2
+ *  (bypassing the app server + its request-body limits). The client MUST send
+ *  the same `Content-Type` it's signed with, or R2 rejects the signature. */
+export async function r2SignedUploadUrl(key: string, contentType: string, expiresIn: number): Promise<string> {
+  const { client, bucket } = s3();
+  return getSignedUrl(
+    client,
+    new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType || "application/octet-stream" }),
+    { expiresIn },
+  );
+}
+
 export async function r2Remove(keys: string[]): Promise<void> {
   if (keys.length === 0) return;
   const { client, bucket } = s3();

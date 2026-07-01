@@ -12,6 +12,8 @@ import {
   deleteResource,
   createFileResource,
   createLinkResource,
+  createResourceUpload,
+  recordFileResource,
 } from "@/lib/admin/content-actions";
 import { deleteNode, listChapterResources, setPublished, type NodeKind } from "@/lib/admin/studio-actions";
 import { categoryMeta, resourceTypeLabel, type ResourceCategory } from "@/lib/resource-meta";
@@ -535,10 +537,10 @@ function AddPanel({
     setError(null);
     startTransition(async () => {
       try {
-        if (mode === "file") {
-          await createFileResource(formData);
-        } else {
+        if (mode === "link") {
           await createLinkResource(formData);
+        } else {
+          await uploadFile(formData);
         }
         // Reset so the next item of this type can be added cleanly.
         formRef.current?.reset();
@@ -549,6 +551,53 @@ function AddPanel({
         setError(e instanceof Error ? e.message : "Could not add the resource.");
       }
     });
+  }
+
+  // Upload the file straight to storage (bypassing the app server's request-body
+  // limit) when R2 is configured, then record just the metadata. Falls back to
+  // sending the file through the server action when R2 isn't configured.
+  async function uploadFile(formData: FormData) {
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) {
+      throw new Error("Choose a file to upload.");
+    }
+
+    const target = await createResourceUpload({
+      chapterId,
+      fileName: file.name,
+      contentType: file.type,
+      fileSize: file.size,
+    });
+
+    if (target.mode === "server") {
+      await createFileResource(formData);
+      return;
+    }
+
+    const put = await fetch(target.uploadUrl, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": target.contentType },
+    });
+    if (!put.ok) {
+      throw new Error(`Upload failed (${put.status}). Please try again.`);
+    }
+
+    const meta = new FormData();
+    meta.set("chapter_id", chapterId);
+    meta.set("file_path", target.key);
+    meta.set("file_name", file.name);
+    meta.set("file_size", String(file.size));
+    meta.set("mime_type", file.type);
+    meta.set("order_index", String(orderIndex));
+    meta.set("title", String(formData.get("title") ?? ""));
+    meta.set("category", slot.category);
+    meta.set("access", String(formData.get("access") ?? "free"));
+    const payhip = formData.get("payhip_url");
+    if (payhip) meta.set("payhip_url", String(payhip));
+    if (formData.get("is_published")) meta.set("is_published", "on");
+
+    await recordFileResource(meta);
   }
 
   return (

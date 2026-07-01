@@ -1,5 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
-import { chunk, r2Enabled, r2Upload, r2SignedUrl, r2Remove, r2Copy } from "./r2";
+import { chunk, r2Enabled, r2Upload, r2SignedUrl, r2SignedUploadUrl, r2Remove, r2Copy } from "./r2";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -51,6 +51,19 @@ export async function signedResourceUrl(
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(key, expiresIn);
   if (error) return null;
   return data.signedUrl;
+}
+
+/**
+ * A short-lived presigned PUT URL so the browser can upload a file DIRECTLY to
+ * storage (bypassing the app server's request-body size limit). Returns null when
+ * R2 isn't configured — callers then fall back to the server-side upload path
+ * (`uploadResource`), which is fine for the small-file / local-dev case.
+ */
+export async function signedUploadUrl(key: string, contentType: string, expiresIn: number): Promise<string | null> {
+  if (r2Enabled()) {
+    return r2SignedUploadUrl(key, contentType, expiresIn);
+  }
+  return null;
 }
 
 /** Best-effort delete of stored files. Never throws — the DB row is the source of
