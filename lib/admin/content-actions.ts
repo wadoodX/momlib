@@ -9,6 +9,7 @@ import { deleteNodeAndStorage } from "@/lib/admin/storage-cleanup";
 import { uploadResource, removeResources, signedUploadUrl } from "@/lib/storage/resources";
 import { isColor, isIcon } from "@/lib/customization";
 import { isCategory } from "@/lib/resource-meta";
+import { isGammaUrl, extractEmbedUrl } from "@/lib/embeds";
 import type { Database } from "@/types/database";
 
 type ResourceType = Database["public"]["Tables"]["resources"]["Row"]["resource_type"];
@@ -487,22 +488,8 @@ function getRequiredUrl(formData: FormData, name: string) {
   return url.toString();
 }
 
-// If an admin pasted a full "<iframe … src="…">" embed snippet (e.g. Gamma's
-// embed code), pull out just the src URL; otherwise return the value unchanged.
-// We only ever store/render the extracted URL — never the raw HTML.
-function extractEmbedUrl(raw: string): string {
-  const value = raw.trim();
-  const match = value.match(/<iframe[^>]*\bsrc\s*=\s*["']([^"']+)["']/i);
-  return match ? match[1].trim() : value;
-}
-
 function sanitizeFileName(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "resource";
-}
-
-function isGammaUrl(value: string) {
-  const hostname = new URL(value).hostname;
-  return hostname === "gamma.app" || hostname.endsWith(".gamma.app");
 }
 
 function inferResourceType(mime: string, name: string): ResourceType {

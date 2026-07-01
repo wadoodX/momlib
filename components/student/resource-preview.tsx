@@ -1,34 +1,15 @@
 import type { ResourceLink } from "@/lib/db/content";
+import { isGammaUrl, isGammaEmbedUrl } from "@/lib/embeds";
 
 // Shared, hook-free preview logic used by both the student resource card and the
-// admin Content Studio. Renders an inline embed (PDF/Office/image/video) or a
-// link-out notice (Gamma / generic links) based on the resolved `href` + type.
+// admin Content Studio. Renders an inline embed (PDF/Office/image/video/Gamma) or
+// a link-out notice (non-embed Gamma / generic links) based on `href` + type.
 
 export type Preview = {
   label: string;
   type: "image" | "pdf" | "video" | "office" | "gamma" | "gamma-embed" | "link";
   src: string | null;
 };
-
-export function isGammaUrl(value: string) {
-  try {
-    const hostname = new URL(value).hostname;
-    return hostname === "gamma.app" || hostname.endsWith(".gamma.app");
-  } catch {
-    return false;
-  }
-}
-
-/** Gamma's dedicated embed URL (gamma.app/embed/…) — unlike a normal Gamma doc
- *  link, this one is designed to be iframed, so we can show it inline. */
-export function isGammaEmbedUrl(value: string) {
-  try {
-    const u = new URL(value);
-    return (u.hostname === "gamma.app" || u.hostname.endsWith(".gamma.app")) && u.pathname.startsWith("/embed/");
-  } catch {
-    return false;
-  }
-}
 
 export function getResourcePreview(resource: ResourceLink): Preview {
   if (!resource.href) {

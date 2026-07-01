@@ -720,7 +720,12 @@ function EditPanel({ resource, onChanged }: { resource: ResourceLink; onChanged:
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Edit resource</p>
 
       {/* View the file/link right here in the studio (no need to go to Courses). */}
-      {resource.href ? (
+      {!resource.href ? (
+        <p className="text-xs text-muted">No file or link to preview yet.</p>
+      ) : preview.type === "gamma-embed" ? (
+        // Gamma embeds just show inline — no "Open" affordance.
+        <ResourcePreview resource={resource} preview={preview} height="h-96" />
+      ) : (
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -743,8 +748,6 @@ function EditPanel({ resource, onChanged }: { resource: ResourceLink; onChanged:
           </div>
           {showPreview ? <ResourcePreview resource={resource} preview={preview} height="h-96" /> : null}
         </div>
-      ) : (
-        <p className="text-xs text-muted">No file or link to preview yet.</p>
       )}
 
       <input type="hidden" name="resource_id" value={resource.id} />
