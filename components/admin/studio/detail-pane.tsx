@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Pencil, Upload, Link2, Plus } from "lucide-react";
+import { Trash2, Pencil, Upload, Link2, Plus, ExternalLink, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   updateCourse,
@@ -17,8 +17,9 @@ import {
 } from "@/lib/admin/content-actions";
 import { deleteNode, listChapterResources, setPublished, type NodeKind } from "@/lib/admin/studio-actions";
 import { categoryMeta, resourceTypeLabel, type ResourceCategory } from "@/lib/resource-meta";
-import type { Resource } from "@/lib/db/content";
+import type { Resource, ResourceLink } from "@/lib/db/content";
 import type { CourseNode, SubjectNode, ChapterNode } from "@/lib/db/admin-content";
+import { getResourcePreview, ResourcePreview } from "@/components/student/resource-preview";
 import { CustomizationFields } from "./customization-fields";
 import { AccessFields } from "./access-fields";
 
@@ -325,7 +326,7 @@ const SLOT_CATEGORIES = new Set<ResourceCategory>(RESOURCE_SLOTS.map((s) => s.ca
 type Selected = { kind: "type"; category: ResourceCategory } | { kind: "resource"; id: string };
 
 function ResourcesSection({ chapterId }: { chapterId: string }) {
-  const [resources, setResources] = useState<Resource[] | null>(null);
+  const [resources, setResources] = useState<ResourceLink[] | null>(null);
   // What the always-visible panel acts on: a type box (to add to it) or a
   // specific resource (to edit). Defaults to the first type so adding is ready.
   const [selected, setSelected] = useState<Selected>({ kind: "type", category: RESOURCE_SLOTS[0].category });
@@ -422,7 +423,7 @@ function ResourcePanel({
 }: {
   chapterId: string;
   slot: { category: ResourceCategory; name: string } | null;
-  resource: Resource | null;
+  resource: ResourceLink | null;
   nextOrderIndex: number;
   onChanged: () => void;
 }) {
@@ -674,11 +675,13 @@ function AddPanel({
 // The always-visible panel when a resource is selected: edit its name, which
 // type box it's in, access, and published — or remove it. The file/link itself
 // is changed by removing and re-adding.
-function EditPanel({ resource, onChanged }: { resource: Resource; onChanged: () => void }) {
+function EditPanel({ resource, onChanged }: { resource: ResourceLink; onChanged: () => void }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [paid, setPaid] = useState(resource.is_paid);
   const [error, setError] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const preview = getResourcePreview(resource);
 
   function save(formData: FormData) {
     setError(null);
@@ -709,6 +712,35 @@ function EditPanel({ resource, onChanged }: { resource: Resource; onChanged: () 
   return (
     <form action={save} className="space-y-3 rounded-2xl border border-line bg-card p-4">
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Edit resource</p>
+
+      {/* View the file/link right here in the studio (no need to go to Courses). */}
+      {resource.href ? (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowPreview((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition hover:border-sage"
+            >
+              <Eye className="size-3.5" />
+              {showPreview ? "Hide preview" : "View here"}
+            </button>
+            <a
+              href={resource.href}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition hover:border-sage"
+            >
+              <ExternalLink className="size-3.5" />
+              Open in new tab
+            </a>
+          </div>
+          {showPreview ? <ResourcePreview resource={resource} preview={preview} height="h-96" /> : null}
+        </div>
+      ) : (
+        <p className="text-xs text-muted">No file or link to preview yet.</p>
+      )}
+
       <input type="hidden" name="resource_id" value={resource.id} />
       <input type="hidden" name="chapter_id" value={resource.chapter_id} />
       <input type="hidden" name="order_index" value={resource.order_index} />
