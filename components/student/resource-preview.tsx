@@ -1,27 +1,23 @@
 import type { ResourceLink } from "@/lib/db/content";
+import { isGammaUrl, isGammaEmbedUrl } from "@/lib/embeds";
 
 // Shared, hook-free preview logic used by both the student resource card and the
-// admin Content Studio. Renders an inline embed (PDF/Office/image/video) or a
-// link-out notice (Gamma / generic links) based on the resolved `href` + type.
+// admin Content Studio. Renders an inline embed (PDF/Office/image/video/Gamma) or
+// a link-out notice (non-embed Gamma / generic links) based on `href` + type.
 
 export type Preview = {
   label: string;
-  type: "image" | "pdf" | "video" | "office" | "gamma" | "link";
+  type: "image" | "pdf" | "video" | "office" | "gamma" | "gamma-embed" | "link";
   src: string | null;
 };
-
-export function isGammaUrl(value: string) {
-  try {
-    const hostname = new URL(value).hostname;
-    return hostname === "gamma.app" || hostname.endsWith(".gamma.app");
-  } catch {
-    return false;
-  }
-}
 
 export function getResourcePreview(resource: ResourceLink): Preview {
   if (!resource.href) {
     return { label: resource.resource_type, type: "link", src: null };
+  }
+
+  if (isGammaEmbedUrl(resource.href)) {
+    return { label: "Gamma presentation", type: "gamma-embed", src: resource.href };
   }
 
   if (isGammaUrl(resource.href)) {
@@ -76,6 +72,21 @@ export function ResourcePreview({
         >
           Open presentation
         </a>
+      </div>
+    );
+  }
+
+  if (preview.type === "gamma-embed" && preview.src) {
+    return (
+      <div className="mt-5 overflow-hidden rounded-2xl border border-line bg-paper-soft">
+        <iframe
+          title={resource.title || "Gamma presentation"}
+          src={preview.src}
+          loading="lazy"
+          className="aspect-video w-full"
+          allow="fullscreen"
+          referrerPolicy="no-referrer"
+        />
       </div>
     );
   }

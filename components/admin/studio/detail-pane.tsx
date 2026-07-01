@@ -637,12 +637,18 @@ function AddPanel({
       ) : (
         <>
           <label className="block">
-            <span className="text-xs font-medium text-ink">Link</span>
-            <input required name="external_url" type="url" placeholder="https://…" className={inputClass} />
+            <span className="text-xs font-medium text-ink">Link or embed code</span>
+            <input
+              required
+              name="external_url"
+              type="text"
+              placeholder="https://…  or paste a Gamma <iframe> embed"
+              className={inputClass}
+            />
           </label>
           <label className="flex items-center gap-2 text-sm text-ink">
             <input name="is_gamma" type="checkbox" className="size-4 accent-sage" />
-            Gamma presentation
+            Gamma presentation (embeds inline)
           </label>
         </>
       )}
@@ -714,7 +720,23 @@ function EditPanel({ resource, onChanged }: { resource: ResourceLink; onChanged:
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Edit resource</p>
 
       {/* View the file/link right here in the studio (no need to go to Courses). */}
-      {resource.href ? (
+      {!resource.href ? (
+        <p className="text-xs text-muted">No file or link to preview yet.</p>
+      ) : preview.type === "gamma-embed" ? (
+        // Gamma embeds show inline, plus an Open-in-new-tab for the full view.
+        <div className="space-y-2">
+          <a
+            href={resource.href}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition hover:border-sage"
+          >
+            <ExternalLink className="size-3.5" />
+            Open in new tab
+          </a>
+          <ResourcePreview resource={resource} preview={preview} height="h-96" />
+        </div>
+      ) : (
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -737,8 +759,6 @@ function EditPanel({ resource, onChanged }: { resource: ResourceLink; onChanged:
           </div>
           {showPreview ? <ResourcePreview resource={resource} preview={preview} height="h-96" /> : null}
         </div>
-      ) : (
-        <p className="text-xs text-muted">No file or link to preview yet.</p>
       )}
 
       <input type="hidden" name="resource_id" value={resource.id} />
@@ -751,6 +771,21 @@ function EditPanel({ resource, onChanged }: { resource: ResourceLink; onChanged:
         <span className="text-xs font-medium text-ink">Name</span>
         <input required name="title" defaultValue={resource.title} className={inputClass} />
       </label>
+
+      {/* Link resources can have their URL edited in place (paste a new link or a
+          Gamma <iframe> embed). File resources are changed by re-uploading. */}
+      {resource.external_url ? (
+        <label className="block">
+          <span className="text-xs font-medium text-ink">Link or embed code</span>
+          <input
+            name="external_url"
+            type="text"
+            defaultValue={resource.external_url}
+            placeholder="https://…  or paste a Gamma <iframe> embed"
+            className={inputClass}
+          />
+        </label>
+      ) : null}
 
       <label className="block">
         <span className="text-xs font-medium text-ink">Type box</span>
