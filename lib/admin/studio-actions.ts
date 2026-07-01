@@ -7,7 +7,7 @@ import { getAdminResources } from "@/lib/db/admin-content";
 import { uniqueSlug, nextOrderIndex } from "@/lib/admin/slug";
 import { deleteNodeAndStorage } from "@/lib/admin/storage-cleanup";
 import { copyResource, removeResources } from "@/lib/storage/resources";
-import type { Resource } from "@/lib/db/content";
+import type { Resource, ResourceLink } from "@/lib/db/content";
 
 export type NodeKind = "course" | "subject" | "chapter";
 export type ReorderKind = NodeKind | "resource";
@@ -110,8 +110,8 @@ export async function deleteNode(kind: NodeKind, id: string): Promise<void> {
   revalidatePath("/admin");
 }
 
-/** Lazy-load a chapter's resources for the detail pane. */
-export async function listChapterResources(chapterId: string): Promise<Resource[]> {
+/** Lazy-load a chapter's resources (with signed hrefs for preview) for the detail pane. */
+export async function listChapterResources(chapterId: string): Promise<ResourceLink[]> {
   await requireAdmin();
   return getAdminResources(chapterId);
 }

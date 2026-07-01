@@ -10,11 +10,13 @@ import {
   type Chapter,
   type Course,
   type Resource,
+  type ResourceLink,
   type ResourceSearchResult,
   type SearchRow,
   type StructureResults,
   type Subject,
 } from "@/lib/db/content";
+import { signedResourceUrl } from "@/lib/storage/resources";
 import { queryTerms, ilikeOrFilters } from "@/lib/search-match";
 
 export type ChapterNode = Chapter;
@@ -150,7 +152,7 @@ export async function getAdminChapter(chapterId: string) {
   return data as Chapter;
 }
 
-export async function getAdminResources(chapterId: string) {
+export async function getAdminResources(chapterId: string): Promise<ResourceLink[]> {
   await requireAdmin();
   const supabase = await createClient();
 
@@ -165,7 +167,24 @@ export async function getAdminResources(chapterId: string) {
     throw new Error(error.message);
   }
 
-  return data as Resource[];
+  return Promise.all((data as Resource[]).map((resource) => addAdminResourceHref(supabase, resource)));
+}
+
+// Admin resolves the real file/link for every resource so it can be previewed in
+// the studio. Unlike the student `addResourceHref`, there is no published-chain
+// or paid lock — the admin manages drafts and paid files, so they see them.
+async function addAdminResourceHref(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  resource: Resource,
+): Promise<ResourceLink> {
+  if (resource.external_url) {
+    return { ...resource, href: resource.external_url };
+  }
+  if (!resource.file_path) {
+    return { ...resource, href: null };
+  }
+  const href = await signedResourceUrl(supabase, resource.file_path, 60 * 60);
+  return { ...resource, href };
 }
 
 type StatBreakdown = { total: number; published: number; draft: number };
