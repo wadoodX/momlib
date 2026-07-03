@@ -66,3 +66,16 @@ export function parseNodeDescription(description: string | null | undefined): No
 
   return { status, coreText, detail: details.length ? details.join(" · ") : null };
 }
+
+/**
+ * The display description for a course/subject: the raw `description` with the
+ * "Core/Optional Module" status label and the "Core text:" prefix stripped,
+ * keeping the substance (the book/text plus any other detail). Returns null when
+ * nothing meaningful remains. e.g. "Core Module · Core text: Al-Hidaya by X" →
+ * "Al-Hidaya by X"; "Core Module · PPT Based" → "PPT Based".
+ */
+export function cleanNodeDescription(description: string | null | undefined): string | null {
+  const { coreText, detail } = parseNodeDescription(description);
+  const parts = [coreText, detail].filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
+}

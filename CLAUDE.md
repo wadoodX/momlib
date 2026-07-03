@@ -74,9 +74,11 @@ manages light/dark/system and `ThemeSync` persists it to `profiles.theme`.
 
 - **Slugs** must match `^[a-z0-9]+(?:-[a-z0-9]+)*$`; `courses.slug` is unique. Titles are plain
   ASCII (transliterations, no diacritics).
-- **Subject/chapter `description`** uses the convention `"Core Module · Core text: <book>"` /
-  `"Optional Module · …"`; `parseNodeDescription()` (`lib/format.ts`) splits it into the
-  status pill + core-text line shown on `NodeCard`. Subjects inherit their course's `color`.
+- **Subject `description`** uses the convention `"Core Module · Core text: <book>"` /
+  `"Optional Module · …"` (stored, still editable in the studio). For display, `NodeCard`
+  and the subject header show only the substance via `cleanNodeDescription()` (`lib/format.ts`),
+  which strips the module status + `"Core text:"` label (e.g. → `"<book>"`); the underlying
+  `parseNodeDescription()` split is still available. Subjects inherit their course's `color`.
 - **Card grids** use `grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))]`; the signed-in
   shell (`components/student/page-shell.tsx`) is full-width (no max-width cap).
 - **Migrations** in `supabase/migrations/` must be applied in filename order (dashboard SQL editor

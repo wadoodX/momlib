@@ -7,6 +7,7 @@ import {
 } from "@/lib/db/content";
 import { PageShell } from "@/components/student/page-shell";
 import { ChapterSidebar } from "@/components/student/chapter-sidebar";
+import { cleanNodeDescription } from "@/lib/format";
 
 type SubjectLayoutProps = {
   children: React.ReactNode;
@@ -37,7 +38,7 @@ export default async function SubjectLayout({ children, params }: SubjectLayoutP
     <PageShell
       eyebrow={course.title}
       title={subject.title}
-      description={subject.description}
+      description={cleanNodeDescription(subject.description)}
       role={profile?.role ?? "student"}
       icon={subject.icon}
       color={subject.color}

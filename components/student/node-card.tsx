@@ -2,15 +2,16 @@ import { Link } from "next-view-transitions";
 import { ArrowRight } from "lucide-react";
 import { NodeIcon } from "@/components/customization/node-icon";
 import { colorHex } from "@/lib/customization";
-import { parseNodeDescription } from "@/lib/format";
+import { cleanNodeDescription } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
  * "Illuminated" card for a course/subject. Server-safe (no hooks, like NodeIcon).
- * Reads the node's curated color/icon and parses its description into a status
- * pill + a tidy core-text line. Degrades cleanly when color/icon/description are
- * unset (courses have no description; a few subjects are blank). `index` drives
- * the staggered entrance; `meta` is an optional muted line (e.g. "13 subjects").
+ * Reads the node's curated color/icon and shows a tidy description line (the
+ * module-status/"Core text" labels are stripped — see cleanNodeDescription).
+ * Degrades cleanly when color/icon/description are unset (courses have no
+ * description; a few subjects are blank). `index` drives the staggered entrance;
+ * `meta` is an optional muted line (e.g. "13 subjects").
  */
 export function NodeCard({
   href,
@@ -34,8 +35,8 @@ export function NodeCard({
   className?: string;
 }) {
   const hex = colorHex(color);
-  const { status, coreText, detail } = parseNodeDescription(description);
-  const hasMeta = Boolean(status || coreText || detail || meta);
+  const cleaned = cleanNodeDescription(description);
+  const hasMeta = Boolean(cleaned || meta);
 
   return (
     <Link
@@ -57,32 +58,13 @@ export function NodeCard({
       <div className="relative flex flex-1 flex-col p-6">
         <div className="flex items-start gap-4">
           <NodeIcon icon={icon} color={color} kind={kind} size="lg" />
-          {status ? (
-            <span
-              className={cn(
-                "ml-auto inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.2em]",
-                status === "Core" ? "text-gold" : "text-muted",
-              )}
-            >
-              <span aria-hidden>&#9670;</span>
-              {status}
-            </span>
-          ) : null}
         </div>
 
         <h2 className="mt-4 line-clamp-2 font-display text-xl font-semibold leading-snug text-ink">{title}</h2>
 
         {hasMeta ? <span aria-hidden className="mt-3 block h-px w-10 bg-gold/60" /> : null}
 
-        {coreText ? (
-          <p className="mt-3 text-sm leading-6 text-muted">
-            <span className="font-medium text-gold">Core text</span>
-            {" · "}
-            {coreText}
-          </p>
-        ) : detail ? (
-          <p className="mt-3 text-sm leading-6 text-muted">{detail}</p>
-        ) : null}
+        {cleaned ? <p className="mt-3 text-sm leading-6 text-muted">{cleaned}</p> : null}
 
         {meta ? <p className="mt-2 text-sm font-medium text-muted">{meta}</p> : null}
 
