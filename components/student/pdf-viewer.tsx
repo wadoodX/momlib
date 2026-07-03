@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Maximize2, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronDown, ChevronUp, Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
-// Canvas-based PDF viewer with our own zoom / page controls. We render the PDF
-// ourselves (rather than an <iframe> to the file) so students get zoom in/out
-// and page navigation without the browser viewer's download/print toolbar, and
-// no text layer to copy from. pdfjs needs the DOM, so it is imported lazily
-// inside an effect and never evaluated during SSR.
+// Canvas-based, continuously-scrolling PDF viewer with our own zoom / page
+// controls. We render the PDF ourselves (rather than an <iframe> to the file)
+// so students get zoom in/out without the browser viewer's download/print
+// toolbar, and no text layer to copy from. Pages stack vertically and render
+// lazily as they near the viewport, so long decks stay responsive. pdfjs needs
+// the DOM, so it is imported lazily in an effect and never evaluated during SSR.
 
 type Status = "loading" | "ready" | "error";
 
@@ -33,7 +34,6 @@ export function PdfViewer({
   const [pageNum, setPageNum] = useState(1);
   const [scale, setScale] = useState(1.1);
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Load the document (browser only — pdfjs touches the DOM at import time).
@@ -67,7 +67,7 @@ export function PdfViewer({
     };
   }, [url]);
 
-  // Fit to the container width once the document is ready.
+  // Fit the first page to the container width once the document is ready.
   useEffect(() => {
     if (!doc) return;
     let cancelled = false;
@@ -83,37 +83,41 @@ export function PdfViewer({
     };
   }, [doc]);
 
-  // (Re)render the current page whenever the page or zoom changes.
+  // Track which page sits under the container's vertical midpoint for the counter.
   useEffect(() => {
-    if (!doc) return;
-    let cancelled = false;
-    let task: { promise: Promise<void>; cancel: () => void } | null = null;
-    (async () => {
-      const page = await doc.getPage(pageNum);
-      const canvas = canvasRef.current;
-      if (cancelled || !canvas) return;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const viewport = page.getViewport({ scale });
-      canvas.width = Math.floor(viewport.width * dpr);
-      canvas.height = Math.floor(viewport.height * dpr);
-      canvas.style.width = `${Math.floor(viewport.width)}px`;
-      canvas.style.height = `${Math.floor(viewport.height)}px`;
-      task = page.render({
-        canvas,
-        viewport,
-        transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
+    const container = containerRef.current;
+    if (!container || !numPages) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const mid = container.scrollTop + container.clientHeight / 2;
+        const pages = container.querySelectorAll<HTMLElement>("[data-page]");
+        let current = 1;
+        for (const p of pages) {
+          if (p.offsetTop <= mid) current = Number(p.dataset.page);
+          else break;
+        }
+        setPageNum(current);
       });
-      try {
-        await task.promise;
-      } catch {
-        // Rendering was cancelled by a newer page/zoom — ignore.
-      }
-    })();
-    return () => {
-      cancelled = true;
-      task?.cancel();
     };
-  }, [doc, pageNum, scale]);
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [numPages]);
+
+  const goToPage = useCallback(
+    (n: number) => {
+      const container = containerRef.current;
+      if (!container) return;
+      const clamped = Math.min(numPages, Math.max(1, n));
+      const el = container.querySelector<HTMLElement>(`[data-page="${clamped}"]`);
+      if (el) container.scrollTo({ top: Math.max(0, el.offsetTop - 8), behavior: "smooth" });
+    },
+    [numPages],
+  );
 
   const fitWidth = useCallback(async () => {
     if (!doc || !containerRef.current) return;
@@ -125,8 +129,6 @@ export function PdfViewer({
 
   const zoomOut = () => setScale((s) => clampScale(Number((s - STEP).toFixed(2))));
   const zoomIn = () => setScale((s) => clampScale(Number((s + STEP).toFixed(2))));
-  const prevPage = () => setPageNum((p) => Math.max(1, p - 1));
-  const nextPage = () => setPageNum((p) => Math.min(numPages, p + 1));
 
   return (
     <div className="mt-5 overflow-hidden rounded-2xl border border-line bg-paper-soft">
@@ -145,37 +147,136 @@ export function PdfViewer({
         </ToolbarButton>
 
         <div className="ml-auto flex items-center gap-1">
-          <ToolbarButton onClick={prevPage} disabled={pageNum <= 1} label="Previous page">
-            <ChevronLeft className="size-4" />
+          <ToolbarButton onClick={() => goToPage(pageNum - 1)} disabled={pageNum <= 1} label="Previous page">
+            <ChevronUp className="size-4" />
           </ToolbarButton>
           <span className="min-w-[5.5rem] text-center text-xs font-semibold tabular-nums text-muted">
             {numPages ? `Page ${pageNum} / ${numPages}` : "—"}
           </span>
-          <ToolbarButton onClick={nextPage} disabled={!numPages || pageNum >= numPages} label="Next page">
-            <ChevronRight className="size-4" />
+          <ToolbarButton
+            onClick={() => goToPage(pageNum + 1)}
+            disabled={!numPages || pageNum >= numPages}
+            label="Next page"
+          >
+            <ChevronDown className="size-4" />
           </ToolbarButton>
         </div>
       </div>
 
-      <div ref={containerRef} className={`overflow-auto bg-paper-soft ${heightClass}`}>
+      <div ref={containerRef} className={`relative overflow-auto bg-paper-soft ${heightClass}`}>
         {status === "error" ? (
           <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted">
             This PDF could not be displayed here.
           </div>
+        ) : status === "loading" || !doc ? (
+          <div className="flex h-full items-center justify-center p-6 text-sm text-muted">Loading PDF…</div>
         ) : (
-          <div className="flex min-h-full items-start justify-center p-4">
-            {status === "loading" ? (
-              <div className="flex h-full items-center justify-center py-16 text-sm text-muted">Loading PDF…</div>
-            ) : null}
-            {/* Canvas is kept mounted so the render effect always has its target. */}
-            <canvas
-              ref={canvasRef}
-              aria-label={title ? `${title} (PDF)` : "PDF page"}
-              className={`max-w-full rounded-md shadow-sm ${status === "ready" ? "" : "hidden"}`}
-            />
+          <div className="flex flex-col items-center gap-4 p-4">
+            {Array.from({ length: numPages }, (_, i) => (
+              <PdfPage
+                key={i + 1}
+                doc={doc}
+                pageNumber={i + 1}
+                scale={scale}
+                rootRef={containerRef}
+                label={title ? `${title} — page ${i + 1}` : `PDF page ${i + 1}`}
+              />
+            ))}
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// A single page: reserves its (scaled) height immediately so the scrollbar is
+// correct, then paints its canvas once it scrolls near the viewport.
+function PdfPage({
+  doc,
+  pageNumber,
+  scale,
+  rootRef,
+  label,
+}: {
+  doc: PDFDocumentProxy;
+  pageNumber: number;
+  scale: number;
+  rootRef: React.RefObject<HTMLDivElement | null>;
+  label: string;
+}) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+  const [active, setActive] = useState(false);
+
+  // Measure the page at the current scale so the placeholder reserves height.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const page = await doc.getPage(pageNumber);
+      if (cancelled) return;
+      const vp = page.getViewport({ scale });
+      setDims({ w: Math.floor(vp.width), h: Math.floor(vp.height) });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [doc, pageNumber, scale]);
+
+  // Begin painting once the page nears the viewport; stay painted afterwards.
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || active) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setActive(true);
+      },
+      { root: rootRef.current ?? null, rootMargin: "600px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [active, rootRef]);
+
+  // Paint (and repaint on zoom) while active.
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+    let task: { promise: Promise<void>; cancel: () => void } | null = null;
+    (async () => {
+      const page = await doc.getPage(pageNumber);
+      const canvas = canvasRef.current;
+      if (cancelled || !canvas) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const vp = page.getViewport({ scale });
+      canvas.width = Math.floor(vp.width * dpr);
+      canvas.height = Math.floor(vp.height * dpr);
+      canvas.style.width = `${Math.floor(vp.width)}px`;
+      canvas.style.height = `${Math.floor(vp.height)}px`;
+      task = page.render({
+        canvas,
+        viewport: vp,
+        transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
+      });
+      try {
+        await task.promise;
+      } catch {
+        // Superseded by a newer zoom/unmount — ignore.
+      }
+    })();
+    return () => {
+      cancelled = true;
+      task?.cancel();
+    };
+  }, [active, doc, pageNumber, scale]);
+
+  return (
+    <div
+      ref={wrapRef}
+      data-page={pageNumber}
+      style={dims ? { width: dims.w, height: dims.h } : undefined}
+      className="overflow-hidden rounded-md bg-white shadow-sm"
+    >
+      <canvas ref={canvasRef} aria-label={label} className="block" />
     </div>
   );
 }
