@@ -19,7 +19,10 @@ if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) 
   process.exit(1);
 }
 
-const origins = (process.env.CORS_ORIGINS ?? "http://localhost:3000,https://nibraslibrary.vercel.app")
+// `https://*.vercel.app` covers Vercel preview deploys (the PDF viewer fetches
+// files cross-origin, so each preview URL needs CORS; the signed URL is still
+// the real access gate, so the wildcard is not a security downgrade).
+const origins = (process.env.CORS_ORIGINS ?? "http://localhost:3000,https://nibraslibrary.vercel.app,https://*.vercel.app")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);

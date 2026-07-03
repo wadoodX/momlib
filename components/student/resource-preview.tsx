@@ -1,5 +1,6 @@
 import type { ResourceLink } from "@/lib/db/content";
 import { isGammaUrl, isGammaEmbedUrl } from "@/lib/embeds";
+import { PdfViewer } from "@/components/student/pdf-viewer";
 
 // Shared, hook-free preview logic used by both the student resource card and the
 // admin Content Studio. Renders an inline embed (PDF/Office/image/video/Gamma) or
@@ -33,9 +34,8 @@ export function getResourcePreview(resource: ResourceLink): Preview {
   }
 
   if (resource.resource_type === "pdf") {
-    // #toolbar=0 hides the browser PDF viewer's download/print bar; navpanes=0 hides the sidebar.
-    // (Best-effort — honored by Chrome/Edge; a raw fetch can still bypass it.)
-    return { label: "PDF", type: "pdf", src: `${resource.href}#toolbar=0&navpanes=0` };
+    // Rendered by our own <PdfViewer> (canvas + zoom controls, no download bar).
+    return { label: "PDF", type: "pdf", src: resource.href };
   }
 
   if (resource.resource_type === "doc" || resource.resource_type === "ppt") {
@@ -115,7 +115,11 @@ export function ResourcePreview({
     );
   }
 
-  if (preview.type === "pdf" || preview.type === "office") {
+  if (preview.type === "pdf") {
+    return <PdfViewer url={preview.src} title={resource.title} heightClass={height} />;
+  }
+
+  if (preview.type === "office") {
     return (
       <div className="mt-5 overflow-hidden rounded-2xl border border-line bg-paper-soft">
         <iframe
