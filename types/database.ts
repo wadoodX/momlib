@@ -322,6 +322,13 @@ export type Database = {
           count: number;
         }[];
       };
+      admin_views_by_day: {
+        Args: { days_count?: number };
+        Returns: {
+          day: string;
+          views: number;
+        }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

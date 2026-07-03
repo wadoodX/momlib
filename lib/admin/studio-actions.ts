@@ -67,6 +67,10 @@ export async function quickAdd(
   }
 
   revalidatePath("/admin");
+  // quickAdd + setPublished are also invoked from the teacher dashboard
+  // (Mission Control), so its RSC payload must refresh too. The other studio
+  // actions are only reachable from /admin and keep the single revalidate.
+  revalidatePath("/dashboard");
   return { id };
 }
 
@@ -141,6 +145,7 @@ export async function setPublished(kind: NodeKind, id: string, isPublished: bool
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin");
+  revalidatePath("/dashboard"); // dashboard queue/stats render publish state (see quickAdd note)
 }
 
 /* ---------- recursive duplicate ---------- */

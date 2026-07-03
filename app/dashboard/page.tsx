@@ -18,11 +18,11 @@ export default async function DashboardPage() {
 
   return (
     <PageShell
-      eyebrow={isAdmin ? "Teacher area" : "Student area"}
-      title={greeting(firstName)}
+      eyebrow={isAdmin ? "Mission Control" : "Student area"}
+      title={isAdmin ? `As-salamu alaykum, ${firstName}` : greeting(firstName)}
       description={
         isAdmin
-          ? "Here's how your library is doing today."
+          ? "Here's your library at a glance — what needs you, and what's working."
           : "Pick up where you left off, or explore something new."
       }
       role={role}
