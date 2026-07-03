@@ -18,7 +18,7 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
     <main className="flex min-h-screen items-center justify-center bg-paper px-6 py-12 text-ink">
       <section className="w-full max-w-md rounded-3xl border border-line bg-card p-8 shadow-2xl shadow-ink/10">
         <p className="text-sm font-medium uppercase tracking-[0.25em] text-gold">Nibras</p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight">Set a new password</h1>
+        <h1 className="font-display mt-4 text-3xl font-semibold tracking-tight">Set a new password</h1>
 
         {message ? (
           <div className="mt-6 rounded-2xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-ink">{message}</div>

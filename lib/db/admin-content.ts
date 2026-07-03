@@ -18,6 +18,9 @@ import {
 } from "@/lib/db/content";
 import { signedResourceUrl } from "@/lib/storage/resources";
 import { queryTerms, ilikeOrFilters } from "@/lib/search-match";
+import { detectContentGaps, fillMissingDays, type ContentGap, type DayPoint } from "@/lib/admin/insights";
+
+export type { ContentGap } from "@/lib/admin/insights";
 
 export type ChapterNode = Chapter;
 export type SubjectNode = Subject & { chapters: ChapterNode[] };
@@ -261,7 +264,9 @@ export async function getRecentResourcesForAdmin(limit = 5): Promise<AdminRecent
   const { data, error } = await supabase
     .from("resources")
     .select("id, title, is_published, created_at, updated_at, chapter:chapters(id, title, subject:subjects(title, course:courses(title)))")
-    .order("created_at", { ascending: false })
+    // Ordered by updated_at so the list is "recent activity" (matching the
+    // "Edited …" label the dashboard renders), not insertion order.
+    .order("updated_at", { ascending: false })
     .limit(limit);
 
   if (error) {
@@ -415,19 +420,67 @@ export async function searchAllStructure(query: string): Promise<StructureResult
   return gatherStructure(supabase, query.trim(), true);
 }
 
-export async function getDraftCourses(): Promise<Course[]> {
+export type ViewsByDay = DayPoint[];
+
+/** Per-day activity counts for the dashboard chart (zero-filled to `days`).
+ *  See the migration comment: chapter_views is an upsert table, so this is a
+ *  "latest opens per day" activity proxy, not an event log. */
+export async function getViewsByDay(days = 14): Promise<ViewsByDay> {
   await requireAdmin();
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("courses")
-    .select("*")
-    .eq("is_published", false)
-    .order("updated_at", { ascending: false });
+  const { data, error } = await supabase.rpc("admin_views_by_day", { days_count: days });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return data as Course[];
+  const rows: DayPoint[] = (data ?? []).map((row) => ({
+    day: row.day,
+    views: Number(row.views),
+  }));
+
+  return fillMissingDays(rows, days);
+}
+
+/** The "needs attention" queue: drafts, empty chapters, and published content
+ *  trapped under draft ancestors. Pure derivation over the admin tree. */
+export async function getContentGaps(): Promise<ContentGap[]> {
+  const supabase = await createClient();
+
+  const [tree, resourcesResult] = await Promise.all([
+    getAdminTree(), // its internal requireAdmin() guards this whole function
+    supabase.from("resources").select("chapter_id, is_published"),
+  ]);
+
+  if (resourcesResult.error) {
+    throw new Error(resourcesResult.error.message);
+  }
+
+  return detectContentGaps(tree, resourcesResult.data ?? []);
+}
+
+export type TeacherDashboardData = {
+  stats: AdminStats;
+  recent: AdminRecentResource[];
+  summary: EngagementSummary;
+  topChapters: TopViewedChapter[];
+  typeBreakdown: Record<ResourceType, number>;
+  viewsByDay: ViewsByDay;
+  gaps: ContentGap[];
+};
+
+/** Everything the teacher dashboard renders, fetched in one parallel burst. */
+export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
+  const [stats, recent, summary, topChapters, typeBreakdown, viewsByDay, gaps] = await Promise.all([
+    getAdminStats(),
+    getRecentResourcesForAdmin(),
+    getEngagementSummary(),
+    getTopViewedChapters(),
+    getResourceTypeBreakdown(),
+    getViewsByDay(),
+    getContentGaps(),
+  ]);
+
+  return { stats, recent, summary, topChapters, typeBreakdown, viewsByDay, gaps };
 }

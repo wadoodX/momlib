@@ -1,32 +1,30 @@
-import { LandingSidebar } from "@/components/landing/landing-sidebar";
+import { LandingNav } from "@/components/landing/landing-nav";
 import { Hero } from "@/components/landing/hero";
 import { Sciences } from "@/components/landing/sciences";
-import { AppPreview } from "@/components/landing/app-preview";
-import { Audiences } from "@/components/landing/audiences";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Features } from "@/components/landing/features";
-import { Testimonials } from "@/components/landing/testimonials";
-import { PricingTeaser } from "@/components/landing/pricing-teaser";
-import { CallToAction } from "@/components/landing/cta";
-import { Footer } from "@/components/landing/footer";
+import { QuoteStats } from "@/components/landing/quote-stats";
+import { Pricing } from "@/components/landing/pricing";
+import { LandingFooter } from "@/components/landing/landing-footer";
 
+// The public marketing landing page. Bespoke, light-only, and fully scoped
+// under `.landing` (see the palette block in app/globals.css) so it never
+// touches the signed-in app's warm-parchment light/dark theme.
 export default function HomePage() {
   return (
-    <div className="bg-paper text-ink lg:flex">
-      <LandingSidebar />
-
-      <main className="min-w-0 flex-1">
-        <Hero />
-        <Sciences />
-        <AppPreview />
-        <HowItWorks />
-        <Features />
-        <Audiences />
-        <Testimonials />
-        <PricingTeaser />
-        <CallToAction />
-        <Footer />
-      </main>
+    <div className="landing min-h-screen">
+      <div className="mx-auto w-full max-w-[1400px]">
+        <LandingNav />
+        <main>
+          <Hero />
+          <Sciences />
+          <HowItWorks />
+          <Features />
+          <QuoteStats />
+          <Pricing />
+        </main>
+        <LandingFooter />
+      </div>
     </div>
   );
 }

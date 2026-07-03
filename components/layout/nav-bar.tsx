@@ -58,8 +58,8 @@ export function NavBar({ role, displayName, email }: NavBarProps) {
       {/* Top row: brand + avatar. A simple flex row on phones; the 3-column grid
           (brand | centered links | avatar) from sm up. */}
       <div className="flex items-center justify-between gap-4 sm:grid sm:grid-cols-3">
-        <Link href="/dashboard" className="text-sm font-semibold uppercase tracking-[0.25em] text-gold sm:justify-self-start">
-          Nibras
+        <Link href="/dashboard" className="font-display text-xl font-semibold tracking-tight text-ink sm:justify-self-start">
+          Nibras<span className="text-gold">.</span>
         </Link>
 
         {/* Centered links — middle column on sm+, hidden on phones (shown in the row below). */}

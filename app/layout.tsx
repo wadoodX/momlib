@@ -1,28 +1,33 @@
 import type { Metadata } from "next";
-import { Montserrat, Inter, Amiri } from "next/font/google";
+import { Amiri, Cormorant_Garamond, Figtree } from "next/font/google";
 import { ViewTransitions } from "next-view-transitions";
 import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
-const display = Montserrat({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const body = Inter({
-  subsets: ["latin"],
-  variable: "--font-body",
-  weight: ["300", "400", "500", "600"],
-  display: "swap",
-});
-
 const arabic = Amiri({
   subsets: ["arabic"],
   variable: "--font-arabic",
   weight: ["400", "700"],
+  display: "swap",
+});
+
+// The product typefaces (shared by the landing and the signed-in app): an
+// editorial serif display (Cormorant Garamond, incl. italic for the hero
+// quote) + Figtree for body copy. globals.css maps --font-display/--font-sans
+// onto these variables.
+const cormorant = Cormorant_Garamond({
+  subsets: ["latin"],
+  variable: "--font-cormorant",
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
+const figtree = Figtree({
+  subsets: ["latin"],
+  variable: "--font-figtree",
+  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -71,10 +76,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ViewTransitions>
-      <html lang="en" className={`${display.variable} ${body.variable} ${arabic.variable}`} suppressHydrationWarning>
+      <html
+        lang="en"
+        className={`${arabic.variable} ${cormorant.variable} ${figtree.variable}`}
+        suppressHydrationWarning
+      >
         <body>
           {/* Thin on-brand bar for the rare slow navigation; the cross-fade covers the fast case. */}
-          <NextTopLoader color="#cdb069" height={2} showSpinner={false} shadow={false} />
+          <NextTopLoader color="#c7a34f" height={2} showSpinner={false} shadow={false} />
           <ThemeProvider>{children}</ThemeProvider>
         </body>
       </html>

@@ -18,16 +18,18 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-/** Curated, on-theme accent palette. Stored by `name`; rendered via `hex`. */
+/** Curated, on-theme accent palette. Stored by `name`; rendered via `hex`.
+ *  Hexes are tuned for the cool-green "elevation" surfaces (mint light /
+ *  deep-teal dark) — names are stable content data, only shades shift. */
 export const COLORS: { name: string; hex: string }[] = [
-  { name: "sage", hex: "#7c9468" },
-  { name: "gold", hex: "#bf9f53" },
-  { name: "clay", hex: "#b06a4f" },
-  { name: "rose", hex: "#c06b8e" },
-  { name: "plum", hex: "#7d5ba6" },
-  { name: "ocean", hex: "#4f86b0" },
-  { name: "teal", hex: "#4f9e96" },
-  { name: "slate", hex: "#5b6b7b" },
+  { name: "sage", hex: "#4e8a70" },
+  { name: "gold", hex: "#b08a3c" },
+  { name: "clay", hex: "#a96a52" },
+  { name: "rose", hex: "#b16787" },
+  { name: "plum", hex: "#7a62a8" },
+  { name: "ocean", hex: "#4a86ad" },
+  { name: "teal", hex: "#3f9a8e" },
+  { name: "slate", hex: "#5d7274" },
 ];
 
 /** Curated, Islamic-studies-themed lucide icons. Stored by key.
@@ -58,7 +60,7 @@ export const DEFAULT_ICON: Record<"course" | "subject", string> = {
   subject: "BookOpen",
 };
 
-const DEFAULT_HEX = "#7c9468"; // sage
+const DEFAULT_HEX = "#4e8a70"; // sage
 
 export function isColor(value: string | null | undefined): value is string {
   return !!value && COLORS.some((c) => c.name === value);

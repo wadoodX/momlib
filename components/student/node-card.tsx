@@ -43,7 +43,7 @@ export function NodeCard({
       style={{ animationDelay: `${Math.min(index, 12) * 50}ms` }}
       className={cn(
         "card-rise group relative flex flex-col overflow-hidden rounded-3xl border border-line bg-card",
-        "transition duration-300 hover:-translate-y-1 hover:border-sage hover:shadow-[0_18px_40px_-24px_rgba(0,0,0,0.45)]",
+        "transition duration-300 hover:-translate-y-1 hover:border-sage hover:shadow-[0_18px_40px_-24px_rgba(22,52,46,0.45)]",
         className,
       )}
     >

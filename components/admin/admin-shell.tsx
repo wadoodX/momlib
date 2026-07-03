@@ -23,7 +23,7 @@ export async function AdminShell({ eyebrow, title, description, breadcrumbs, chi
         {breadcrumbs ? <Breadcrumbs items={breadcrumbs} /> : null}
 
         <p className="text-sm font-medium uppercase tracking-[0.25em] text-gold">{eyebrow}</p>
-        <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight sm:text-5xl">{title}</h1>
+        <h1 className="font-display mt-3 max-w-4xl text-4xl font-semibold tracking-tight sm:text-5xl">{title}</h1>
         {description ? <p className="mt-5 max-w-3xl text-base leading-7 text-muted">{description}</p> : null}
 
         <div className="mt-10">{children}</div>
