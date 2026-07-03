@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import {
+  getChapterCompleted,
   getPublishedChapterBySlug,
   getPublishedCourseBySlug,
   getPublishedResourcesForChapter,
@@ -8,6 +9,7 @@ import {
 } from "@/lib/db/content";
 import { EmptyState } from "@/components/student/empty-state";
 import { ResourceCard } from "@/components/student/resource-card";
+import { MarkCompleteButton } from "@/components/student/mark-complete-button";
 
 type ChapterPageProps = {
   params: Promise<{ courseSlug: string; subjectSlug: string; chapterSlug: string }>;
@@ -37,16 +39,21 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
 
   const resources = await getPublishedResourcesForChapter(chapter.id);
 
-  // Track "last read" for the student dashboard's Continue learning list.
+  // Track "last read" for the dashboard's resume/recent, then read completion
+  // for the Mark-complete button's initial state.
   await recordChapterView(chapter.id);
+  const completed = await getChapterCompleted(chapter.id);
 
   return (
     <article>
-      <header className="mb-6">
-        <h2 className="text-2xl font-semibold tracking-tight text-ink">{chapter.title}</h2>
-        {chapter.description ? (
-          <p className="mt-2 text-base leading-7 text-muted">{chapter.description}</p>
-        ) : null}
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-semibold tracking-tight text-ink">{chapter.title}</h2>
+          {chapter.description ? (
+            <p className="mt-2 text-base leading-7 text-muted">{chapter.description}</p>
+          ) : null}
+        </div>
+        <MarkCompleteButton chapterId={chapter.id} initialCompleted={completed} />
       </header>
 
       {resources.length === 0 ? (
