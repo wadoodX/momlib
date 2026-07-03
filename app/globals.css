@@ -2,42 +2,45 @@
 @import "tw-animate-css";
 
 @theme {
-  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-cormorant), Georgia, ui-serif, serif;
   --font-arabic: var(--font-arabic), ui-serif, serif;
 
-  /* "Parchment" palette: warm cream, deep slate-green ink, sage + gold
-     accents. Used across the whole app (landing + signed-in pages). */
-  --color-paper: #f0ebde;
-  --color-paper-soft: #e7e0cf;
-  --color-ink: #28332b;
-  --color-muted: #5b645a;
-  --color-line: #dcd4c4;
-  --color-sage: #7c9468;
-  --color-sage-deep: #5e7350;
-  /* Deepened from #bf9f53 so gold *text* clears WCAG AA (4.5:1) on the parchment
-     paper/card backgrounds; dark mode keeps the brighter gold below. */
-  --color-gold: #7a5f22;
+  /* "Elevation" palette: cool mint surfaces, deep teal-green ink, teal + gold
+     accents — the landing page identity, applied product-wide. The `.landing`
+     scoped literals below stay the (light-only) source of truth for marketing;
+     these tokens mirror it and add the dark variant. */
+  --color-paper: #edf3ee;
+  --color-paper-soft: #e2ebe3;
+  --color-ink: #16342e;
+  --color-muted: #4e6a61;
+  --color-line: #d6e2d8;
+  --color-sage: #1f5c4d;
+  --color-sage-deep: #153a31;
+  /* Deepened from the landing's #a8842e (only ~3.1:1) so gold *text* clears
+     WCAG AA (4.5:1) on the mint paper/card backgrounds; dark mode keeps the
+     brighter on-teal gold below. */
+  --color-gold: #85661e;
 
-  /* shadcn-compatible aliases mapped to the parchment palette, so the
+  /* shadcn-compatible aliases mapped to the elevation palette, so the
      components/ui primitives render on theme. NOTE: --color-muted is
      intentionally NOT redefined (it is our body-text token above). */
-  --color-background: #f0ebde;
-  --color-foreground: #28332b;
-  --color-card: #ece4d2;
-  --color-card-foreground: #28332b;
-  --color-popover: #f0ebde;
-  --color-popover-foreground: #28332b;
-  --color-primary: #7c9468;
-  --color-primary-foreground: #f6f3ea;
-  --color-secondary: #e7e0cf;
-  --color-secondary-foreground: #28332b;
-  --color-accent: #e7e0cf;
-  --color-accent-foreground: #28332b;
-  --color-muted-foreground: #5b645a;
-  --color-border: #dcd4c4;
-  --color-input: #dcd4c4;
-  --color-ring: #7c9468;
+  --color-background: #edf3ee;
+  --color-foreground: #16342e;
+  --color-card: #f7faf4;
+  --color-card-foreground: #16342e;
+  --color-popover: #f7faf4;
+  --color-popover-foreground: #16342e;
+  --color-primary: #1f5c4d;
+  --color-primary-foreground: #f2f8f1;
+  --color-secondary: #e2ebe3;
+  --color-secondary-foreground: #16342e;
+  --color-accent: #e2ebe3;
+  --color-accent-foreground: #16342e;
+  --color-muted-foreground: #4e6a61;
+  --color-border: #d6e2d8;
+  --color-input: #d6e2d8;
+  --color-ring: #1f5c4d;
   /* Warm terracotta for destructive actions/errors — fits the parchment palette
      and clears WCAG AA as text on paper/card. Used as `text-destructive`,
      `border-destructive`, and `bg-destructive` + `text-destructive-foreground`. */
@@ -46,52 +49,62 @@
   /* Modal/sheet scrim — intentionally dark in BOTH themes (a scrim shouldn't
      invert), so it's defined once here and not redefined in .dark. */
   --color-overlay: #14171a;
+
+  /* "Panel" tokens: text/lines/accents that sit ON the deep-teal featured
+     surface (.panel-deep below). In light mode the panel is the landing's
+     dark featured-card teal; in dark mode it's a subtly elevated teal — so
+     these stay light-on-dark in BOTH themes, unlike the base tokens. */
+  --color-panel-ink: #f2f8f1;
+  --color-panel-muted: #c9dcce;
+  --color-panel-line: #34584c;
+  --color-panel-accent: #8fcdb6;
+  /* Gold ON the panel: the panel is dark in both themes, so this must NOT
+     flip like --color-gold does (light-mode gold #85661e is ~1.8:1 here). */
+  --color-panel-gold: #e3c67e;
 }
 
 :root {
   color-scheme: light;
-  /* Hero scrim: a paper-colored wash behind the headline so it stays readable
-     over the lantern glow. Theme-aware (dark values set in .dark). */
-  --hero-scrim-1: rgba(240, 235, 222, 0.88);
-  --hero-scrim-2: rgba(240, 235, 222, 0.58);
 }
 
-/* Dark "parchment at night" palette. Because every utility reads
+/* Dark "deep teal at night" palette. Because every utility reads
    var(--color-*), redefining the tokens here flips the entire app when
    next-themes adds the .dark class to <html>. */
 .dark {
   color-scheme: dark;
 
-  --hero-scrim-1: rgba(25, 29, 25, 0.86);
-  --hero-scrim-2: rgba(25, 29, 25, 0.55);
+  --color-paper: #0e1c17;
+  --color-paper-soft: #152a23;
+  --color-ink: #e9f2ea;
+  --color-muted: #9cb3a8;
+  --color-line: #27443b;
+  --color-sage: #66b299;
+  --color-sage-deep: #4f9a81;
+  --color-gold: #e3c67e;
 
-  --color-paper: #191d19;
-  --color-paper-soft: #232924;
-  --color-ink: #ece4d2;
-  --color-muted: #9aa298;
-  --color-line: #38423a;
-  --color-sage: #8fab78;
-  --color-sage-deep: #759464;
-  --color-gold: #cdb069;
-
-  --color-background: #191d19;
-  --color-foreground: #ece4d2;
-  --color-card: #232924;
-  --color-card-foreground: #ece4d2;
-  --color-popover: #232924;
-  --color-popover-foreground: #ece4d2;
-  --color-primary: #8fab78;
-  --color-primary-foreground: #16190f;
-  --color-secondary: #2b332c;
-  --color-secondary-foreground: #ece4d2;
-  --color-accent: #2b332c;
-  --color-accent-foreground: #ece4d2;
-  --color-muted-foreground: #9aa298;
-  --color-border: #38423a;
-  --color-input: #38423a;
-  --color-ring: #8fab78;
+  --color-background: #0e1c17;
+  --color-foreground: #e9f2ea;
+  --color-card: #152a23;
+  --color-card-foreground: #e9f2ea;
+  --color-popover: #152a23;
+  --color-popover-foreground: #e9f2ea;
+  --color-primary: #66b299;
+  --color-primary-foreground: #0c1a15;
+  --color-secondary: #1b342b;
+  --color-secondary-foreground: #e9f2ea;
+  --color-accent: #1b342b;
+  --color-accent-foreground: #e9f2ea;
+  --color-muted-foreground: #9cb3a8;
+  --color-border: #27443b;
+  --color-input: #27443b;
+  --color-ring: #66b299;
   --color-destructive: #e0816a;
   --color-destructive-foreground: #1a120c;
+
+  --color-panel-ink: #e9f2ea;
+  --color-panel-muted: #9cb3a8;
+  --color-panel-line: #27443b;
+  --color-panel-accent: #66b299;
 }
 
 * {
@@ -106,7 +119,7 @@ html {
 
 body {
   margin: 0;
-  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
   background-color: var(--color-paper);
   color: var(--color-ink);
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -118,24 +131,9 @@ body {
   }
 }
 
-/* Utility: display serif */
+/* Utility: display serif (Cormorant Garamond — same face as the landing) */
 .font-display {
-  font-family: var(--font-display), Georgia, serif;
-}
-
-/* Theme-aware hero scrim (paper wash behind the headline over the lantern glow) */
-.hero-scrim {
-  background: radial-gradient(
-    76% 62% at 50% 46%,
-    var(--hero-scrim-1) 0%,
-    var(--hero-scrim-2) 48%,
-    transparent 76%
-  );
-}
-
-/* Fine grain overlay for atmosphere/depth */
-.grain {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  font-family: var(--font-cormorant), Georgia, serif;
 }
 
 /* Staggered entrance for card grids (courses / subjects). `both` keeps the card
@@ -155,27 +153,43 @@ body {
   animation: card-rise 0.5s cubic-bezier(0.21, 0.47, 0.32, 0.98) both;
 }
 
-/* On-load staggered entrance for the hero (components/landing/hero.tsx). Pure CSS
-   (no JS gate); per-element stagger via inline animation-delay. */
-@keyframes hero-rise {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+@media (prefers-reduced-motion: reduce) {
+  .card-rise {
+    animation: none;
   }
 }
 
-.hero-rise {
-  animation: hero-rise 0.8s cubic-bezier(0.21, 0.47, 0.32, 0.98) both;
+/* Deep-teal featured surface (teacher dashboard's engagement panel). Gradients
+   can't be @theme color tokens, so the stops live in theme-scoped vars: light
+   mode uses the landing's featured-card teal; dark mode a slightly ELEVATED
+   teal (lighter than bg-paper) so the panel still reads as the special cell. */
+:root {
+  --panel-from: #1e5245;
+  --panel-to: #16382f;
+}
+.dark {
+  --panel-from: #183329;
+  --panel-to: #10241d;
+}
+.panel-deep {
+  background: linear-gradient(165deg, var(--panel-from), var(--panel-to));
+}
+
+/* Gentle hover lift for interactive dashboard rows/cards (the landing's .lift
+   is scoped under .landing; this is the app-wide, token-safe sibling). */
+.lift-soft {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.lift-soft:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--color-ink) 12%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card-rise,
-  .hero-rise {
-    animation: none;
+  .lift-soft,
+  .lift-soft:hover {
+    transition: none;
+    transform: none;
   }
 }
 
@@ -191,5 +205,94 @@ body {
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation: none;
+  }
+}
+
+/* ==========================================================================
+   Public landing page (marketing) — bespoke, light-only.
+   Scoped under `.landing` so it is fully self-contained: it never reads the
+   app's parchment tokens and is unaffected by the .dark theme class. The whole
+   signed-in app keeps its warm-parchment light/dark system untouched.
+   Palette lifted verbatim from the approved design mockup.
+   ========================================================================== */
+.landing {
+  --l-bg: #edf3ee; /* page: cool mint */
+  --l-ink: #16342e; /* headings / primary text: deep teal-green */
+  --l-ink-2: #4e6a61; /* body copy */
+  --l-muted: #7b948a; /* fine print */
+  --l-card: #f7faf4; /* light card surface */
+  --l-card-2: #e2ebe3; /* banded section surface */
+  --l-line: #d6e2d8; /* hairlines / borders */
+  --l-line-2: #c9dccf; /* featured-card borders */
+  --l-teal: #153a31; /* deep panel */
+  --l-teal-2: #173f36; /* deep panel (lighter stop) */
+  --l-btn: #1f5c4d; /* solid teal button / accents */
+  --l-gold: #a8842e; /* eyebrows / links */
+  --l-gold-2: #c7a34f; /* dividers / hover borders */
+  --l-gold-3: #e3c67e; /* on-teal gold accent / CTA */
+  --l-cream: #f7faf2; /* text on teal */
+  --l-cream-2: #f2f8f1;
+  --l-on-teal: #c9dcce; /* body text on teal */
+  --l-on-teal-2: #8fa79a; /* muted text on teal */
+
+  font-family: var(--font-figtree), system-ui, sans-serif;
+  background: var(--l-bg);
+  color: var(--l-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.landing .l-serif {
+  font-family: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+}
+
+/* Arcade "mihrab" card: a slow diagonal gradient wash that slides on hover,
+   plus a lift. (Matches the mockup's background-position transition.) */
+.landing .arch {
+  background-size: 250% 250%;
+  background-position: 0% 0%;
+  transition: background-position 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+.landing .arch:hover {
+  background-position: 100% 100%;
+  transform: translateY(-10px);
+  border-color: var(--l-gold-2);
+  box-shadow: 0 22px 44px rgba(22, 52, 46, 0.18);
+}
+.landing .arch.arch--tall:hover {
+  box-shadow: 0 26px 52px rgba(22, 52, 46, 0.2);
+}
+
+/* Generic card lift (pipeline + bento) */
+.landing .lift {
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+.landing .lift:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 24px 48px rgba(22, 52, 46, 0.14);
+}
+.landing .lift.lift--dark:hover {
+  box-shadow: 0 30px 60px rgba(22, 52, 46, 0.3);
+}
+
+/* Gold primary button */
+.landing .btn-gold {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.landing .btn-gold:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px rgba(227, 198, 126, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing .arch,
+  .landing .lift,
+  .landing .btn-gold {
+    transition: none;
+  }
+  .landing .arch:hover,
+  .landing .lift:hover,
+  .landing .btn-gold:hover {
+    transform: none;
   }
 }

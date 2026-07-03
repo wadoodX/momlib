@@ -16,9 +16,9 @@ describe("customization validators", () => {
   });
 
   it("colorHex resolves known names and falls back to sage", () => {
-    expect(colorHex("gold")).toBe("#bf9f53");
-    expect(colorHex(null)).toBe("#7c9468");
-    expect(colorHex("nope")).toBe("#7c9468");
+    expect(colorHex("gold")).toBe("#b08a3c");
+    expect(colorHex(null)).toBe("#4e8a70");
+    expect(colorHex("nope")).toBe("#4e8a70");
   });
 
   it("iconComponent falls back to the kind default", () => {

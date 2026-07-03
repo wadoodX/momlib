@@ -30,7 +30,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <main className="flex min-h-screen items-center justify-center bg-paper px-6 py-12 text-ink">
       <section className="w-full max-w-md rounded-3xl border border-line bg-card p-8 shadow-2xl shadow-ink/10">
         <p className="text-sm font-medium uppercase tracking-[0.25em] text-gold">Nibras</p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight">{HEADINGS[mode].title}</h1>
+        <h1 className="font-display mt-4 text-3xl font-semibold tracking-tight">{HEADINGS[mode].title}</h1>
         <p className="mt-3 text-sm leading-6 text-muted">{HEADINGS[mode].subtitle}</p>
 
         {params.message ? (
