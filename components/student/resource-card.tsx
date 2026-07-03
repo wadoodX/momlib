@@ -24,8 +24,8 @@ export function ResourceCard({ resource }: ResourceCardProps) {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">{eyebrow}</p>
           <h2 className="mt-3 text-xl font-semibold text-ink">{resource.title}</h2>
         </div>
-        {/* Gamma embeds display inline below, so no separate "Open" affordance. */}
-        {preview.type === "gamma-embed" ? null : resource.href ? (
+        {/* Inline-only types (Gamma embeds, PDFs) render below, so no separate "Open" affordance. */}
+        {preview.type === "gamma-embed" || preview.type === "pdf" ? null : resource.href ? (
           <a
             href={resource.href}
             target="_blank"

@@ -33,7 +33,9 @@ export function getResourcePreview(resource: ResourceLink): Preview {
   }
 
   if (resource.resource_type === "pdf") {
-    return { label: "PDF", type: "pdf", src: resource.href };
+    // #toolbar=0 hides the browser PDF viewer's download/print bar; navpanes=0 hides the sidebar.
+    // (Best-effort — honored by Chrome/Edge; a raw fetch can still bypass it.)
+    return { label: "PDF", type: "pdf", src: `${resource.href}#toolbar=0&navpanes=0` };
   }
 
   if (resource.resource_type === "doc" || resource.resource_type === "ppt") {
