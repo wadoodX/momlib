@@ -88,6 +88,7 @@ export function ResourcePreview({
           className="aspect-video w-full"
           allow="fullscreen"
           referrerPolicy="no-referrer"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
         />
       </div>
     );
@@ -131,6 +132,7 @@ export function ResourcePreview({
           className={`w-full ${height}`}
           allow="fullscreen; clipboard-read; clipboard-write"
           referrerPolicy="no-referrer"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
         />
       </div>
     );

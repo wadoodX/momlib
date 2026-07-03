@@ -170,11 +170,18 @@ export async function getPublishedChapterBySlug(subjectId: string, chapterSlug: 
 export async function getPublishedResourcesForChapter(chapterId: string): Promise<ResourceLink[]> {
   const supabase = await createClient();
 
+  // Mirror the published-chain rule in the query itself (defense in depth
+  // alongside RLS): only expose a resource whose whole chapter→subject→course
+  // chain is published. The chain columns are join-only and stripped below so
+  // the returned resource shape is unchanged.
   const { data, error } = await supabase
     .from("resources")
-    .select("*")
+    .select("*, chapter:chapters!inner(is_published, subject:subjects!inner(is_published, course:courses!inner(is_published)))")
     .eq("chapter_id", chapterId)
     .eq("is_published", true)
+    .eq("chapter.is_published", true)
+    .eq("chapter.subject.is_published", true)
+    .eq("chapter.subject.course.is_published", true)
     .order("order_index", { ascending: true })
     .order("title", { ascending: true });
 
@@ -182,7 +189,12 @@ export async function getPublishedResourcesForChapter(chapterId: string): Promis
     throw new Error(error.message);
   }
 
-  return Promise.all((data as Resource[]).map((resource) => addResourceHref(supabase, resource)));
+  const rows = (data as (Resource & { chapter?: unknown })[]).map((row) => {
+    const copy = { ...row };
+    delete copy.chapter; // join-only column, not part of the resource shape
+    return copy as Resource;
+  });
+  return Promise.all(rows.map((resource) => addResourceHref(supabase, resource)));
 }
 
 // Embed the chapter -> subject -> course chain so search results carry their
