@@ -1,5 +1,6 @@
 import type { ResourceLink } from "@/lib/db/content";
 import { isGammaUrl, isGammaEmbedUrl } from "@/lib/embeds";
+import { PdfViewer } from "@/components/student/pdf-viewer";
 
 // Shared, hook-free preview logic used by both the student resource card and the
 // admin Content Studio. Renders an inline embed (PDF/Office/image/video/Gamma) or
@@ -33,6 +34,7 @@ export function getResourcePreview(resource: ResourceLink): Preview {
   }
 
   if (resource.resource_type === "pdf") {
+    // Rendered by our own <PdfViewer> (canvas + zoom controls, no download bar).
     return { label: "PDF", type: "pdf", src: resource.href };
   }
 
@@ -86,6 +88,7 @@ export function ResourcePreview({
           className="aspect-video w-full"
           allow="fullscreen"
           referrerPolicy="no-referrer"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
         />
       </div>
     );
@@ -113,7 +116,13 @@ export function ResourcePreview({
     );
   }
 
-  if (preview.type === "pdf" || preview.type === "office") {
+  if (preview.type === "pdf") {
+    // Stream through our same-origin proxy (no R2 CORS needed); the route
+    // re-checks published-chain + paid access server-side.
+    return <PdfViewer url={`/api/resources/${resource.id}/file`} title={resource.title} heightClass={height} />;
+  }
+
+  if (preview.type === "office") {
     return (
       <div className="mt-5 overflow-hidden rounded-2xl border border-line bg-paper-soft">
         <iframe
@@ -123,6 +132,7 @@ export function ResourcePreview({
           className={`w-full ${height}`}
           allow="fullscreen; clipboard-read; clipboard-write"
           referrerPolicy="no-referrer"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
         />
       </div>
     );

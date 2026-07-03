@@ -245,6 +245,8 @@ function Row({
 
   const [editing, setEditing] = useState(false);
   const renameRef = useRef<HTMLInputElement>(null);
+  // Enter commits then blurs; guard so the blur doesn't fire a second renameNode.
+  const committedRef = useRef(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: node.id,
@@ -252,10 +254,15 @@ function Row({
   });
 
   useEffect(() => {
-    if (editing) renameRef.current?.select();
+    if (editing) {
+      committedRef.current = false;
+      renameRef.current?.select();
+    }
   }, [editing]);
 
   function commitRename(value: string) {
+    if (committedRef.current) return;
+    committedRef.current = true;
     setEditing(false);
     const title = value.trim();
     if (title && title !== node.title) ctx.onRename(kind, node.id, title);

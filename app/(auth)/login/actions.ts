@@ -91,10 +91,14 @@ export async function requestPasswordReset(formData: FormData) {
     redirect(`/login?mode=reset&message=${encodeURIComponent("Enter your email address.")}`);
   }
 
-  // Prefer the configured site URL for the reset link so a spoofed Host header
-  // can't point the recovery link off-site (host-header poisoning). Fall back to
-  // the request origin only when NEXT_PUBLIC_SITE_URL isn't set (e.g. local dev).
+  // Prefer trusted, server-controlled origins for the reset link so a spoofed
+  // Host header can't point the recovery link (which carries the auth code)
+  // off-site — host-header poisoning. Order: explicit config → Vercel's own
+  // production domain → the request Host header (local dev only).
   let origin = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  if (!origin && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    origin = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
   if (!origin) {
     const headerList = await headers();
     const host = headerList.get("x-forwarded-host") ?? headerList.get("host");

@@ -258,25 +258,30 @@ export async function createFileResource(formData: FormData) {
   const filePath = await buildResourcePath(supabase, chapterId, resourceId, fileName);
   const resourceType = inferResourceType(file.type, file.name);
 
-  // Validate everything that can throw (e.g. paid → required Payhip URL) BEFORE
-  // uploading, so a validation failure never orphans uploaded bytes.
+  // Resolve everything that can throw (blank title, paid → required Payhip URL)
+  // BEFORE uploading, so a validation failure never orphans uploaded bytes.
   const paidFields = getPaidFields(formData);
+  const title = getRequiredString(formData, "title");
+  const description = getOptionalString(formData, "description");
+  const category = getCategory(formData);
+  const orderIndex = getNumber(formData, "order_index");
+  const isPublished = getCheckbox(formData, "is_published");
 
   await uploadResource(supabase, filePath, file);
 
   const { error } = await supabase.from("resources").insert({
     id: resourceId,
     chapter_id: chapterId,
-    title: getRequiredString(formData, "title"),
-    description: getOptionalString(formData, "description"),
+    title,
+    description,
     resource_type: resourceType,
-    category: getCategory(formData),
+    category,
     file_path: filePath,
     file_name: fileName,
     file_size: file.size,
     mime_type: file.type || null,
-    order_index: getNumber(formData, "order_index"),
-    is_published: getCheckbox(formData, "is_published"),
+    order_index: orderIndex,
+    is_published: isPublished,
     ...paidFields,
   });
 
@@ -340,28 +345,33 @@ export async function recordFileResource(formData: FormData) {
 
   const prefix = await resourceKeyPrefix(supabase, chapterId);
   if (!key.startsWith(prefix)) {
+    // Not this chapter's key — reject without touching it (never delete an
+    // object we can't prove we own).
     throw new Error("Invalid upload key.");
   }
 
-  const { error } = await supabase.from("resources").insert({
-    chapter_id: chapterId,
-    title: getRequiredString(formData, "title"),
-    description: getOptionalString(formData, "description"),
-    resource_type: inferResourceType(mimeType ?? "", fileName),
-    category: getCategory(formData),
-    file_path: key,
-    file_name: fileName,
-    file_size: fileSize > 0 ? fileSize : null,
-    mime_type: mimeType,
-    order_index: getNumber(formData, "order_index"),
-    is_published: getCheckbox(formData, "is_published"),
-    ...getPaidFields(formData),
-  });
-
-  if (error) {
-    // The bytes are already in storage; clean them up so we don't orphan them.
+  // The bytes are already in storage (direct upload). From here, ANY failure —
+  // a blank title, a paid row missing its Payhip URL, or the insert itself —
+  // must clean up the now-verified-ours key so it isn't orphaned.
+  try {
+    const { error } = await supabase.from("resources").insert({
+      chapter_id: chapterId,
+      title: getRequiredString(formData, "title"),
+      description: getOptionalString(formData, "description"),
+      resource_type: inferResourceType(mimeType ?? "", fileName),
+      category: getCategory(formData),
+      file_path: key,
+      file_name: fileName,
+      file_size: fileSize > 0 ? fileSize : null,
+      mime_type: mimeType,
+      order_index: getNumber(formData, "order_index"),
+      is_published: getCheckbox(formData, "is_published"),
+      ...getPaidFields(formData),
+    });
+    if (error) throw new Error(error.message);
+  } catch (err) {
     await removeResources(supabase, [key]);
-    throw new Error(error.message);
+    throw err;
   }
 
   revalidatePath("/admin");
