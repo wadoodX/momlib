@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { signedResourceUrl } from "@/lib/storage/resources";
 import { queryTerms, titleMatches, rowMatchesQuery, ilikeOrFilters } from "@/lib/search-match";
+import { buildDashboard, type ChapterNode, type DashboardData, type ViewRow } from "@/lib/dashboard";
 import type { Database } from "@/types/database";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -517,4 +518,106 @@ export async function getRecentlyViewedChapters(limit = 6): Promise<RecentChapte
       };
     })
     .filter((item): item is RecentChapter => item !== null);
+}
+
+type ChapterTreeRow = {
+  id: string;
+  title: string;
+  slug: string;
+  order_index: number;
+  created_at: string;
+  subject: {
+    id: string;
+    title: string;
+    slug: string;
+    order_index: number;
+    color: string | null;
+    icon: string | null;
+    course: {
+      id: string;
+      title: string;
+      slug: string;
+      order_index: number;
+      color: string | null;
+      icon: string | null;
+    } | null;
+  } | null;
+};
+
+// Everything the student dashboard needs, from two RLS-scoped reads (the
+// published chapter tree + the user's own chapter_views incl. completed_at)
+// fed through the pure builders in lib/dashboard.ts.
+export async function getStudentDashboardData(): Promise<DashboardData> {
+  const supabase = await createClient();
+
+  const [treeRes, viewsRes] = await Promise.all([
+    supabase
+      .from("chapters")
+      .select(
+        "id, title, slug, order_index, created_at, subject:subjects!inner(id, title, slug, order_index, color, icon, course:courses!inner(id, title, slug, order_index, color, icon))",
+      )
+      .eq("is_published", true)
+      .eq("subject.is_published", true)
+      .eq("subject.course.is_published", true),
+    // RLS scopes chapter_views to the current user.
+    supabase.from("chapter_views").select("chapter_id, viewed_at, completed_at"),
+  ]);
+
+  if (treeRes.error) {
+    throw new Error(treeRes.error.message);
+  }
+  if (viewsRes.error) {
+    throw new Error(viewsRes.error.message);
+  }
+
+  const nodes: ChapterNode[] = ((treeRes.data ?? []) as unknown as ChapterTreeRow[])
+    .filter((r) => r.subject && r.subject.course)
+    .map((r) => {
+      const s = r.subject!;
+      const c = s.course!;
+      return {
+        id: r.id,
+        title: r.title,
+        slug: r.slug,
+        orderIndex: r.order_index,
+        createdAt: r.created_at,
+        subjectId: s.id,
+        subjectTitle: s.title,
+        subjectSlug: s.slug,
+        subjectOrder: s.order_index,
+        subjectColor: s.color,
+        subjectIcon: s.icon,
+        courseId: c.id,
+        courseTitle: c.title,
+        courseSlug: c.slug,
+        courseOrder: c.order_index,
+        courseColor: c.color,
+        courseIcon: c.icon,
+      };
+    });
+
+  const views: ViewRow[] = ((viewsRes.data ?? []) as { chapter_id: string; viewed_at: string; completed_at: string | null }[]).map(
+    (v) => ({ chapterId: v.chapter_id, viewedAt: v.viewed_at, completedAt: v.completed_at }),
+  );
+
+  return buildDashboard(nodes, views, Date.now());
+}
+
+// Whether the current user has marked a specific chapter complete (drives the
+// chapter page's Mark-complete button initial state).
+export async function getChapterCompleted(chapterId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data } = await supabase
+    .from("chapter_views")
+    .select("completed_at")
+    .eq("user_id", user.id)
+    .eq("chapter_id", chapterId)
+    .maybeSingle();
+
+  return Boolean(data?.completed_at);
 }

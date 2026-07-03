@@ -29,6 +29,7 @@ pnpm-debug.log*
 .opencode/
 .agents/
 .claude/
+.superpowers/
 skills-lock.json
 ornate-islamic-arabian-lantern-lamp-hanging/
 public/models/lantern.glb
