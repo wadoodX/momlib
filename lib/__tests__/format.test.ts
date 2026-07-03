@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { timeAgo, parseNodeDescription } from "@/lib/format";
+import { timeAgo, parseNodeDescription, cleanNodeDescription } from "@/lib/format";
 
 const NOW = new Date("2026-05-24T12:00:00Z");
 
@@ -88,5 +88,30 @@ describe("parseNodeDescription", () => {
       coreText: "Ḥayāt aṣ-Ṣaḥābah by Shaykh Muḥammad Yūsuf",
       detail: "PPT Based",
     });
+  });
+});
+
+describe("cleanNodeDescription", () => {
+  it("returns null when there's nothing but the module/core labels or empty", () => {
+    expect(cleanNodeDescription(null)).toBeNull();
+    expect(cleanNodeDescription("")).toBeNull();
+    expect(cleanNodeDescription("Core Module")).toBeNull();
+    expect(cleanNodeDescription("Optional Module")).toBeNull();
+  });
+
+  it("strips the Core/Optional module + 'Core text:' labels, keeping the book", () => {
+    expect(cleanNodeDescription("Core Module · Core text: Al-Fiqh ul Muyassar by Maulana Shafiqur Rahman Nadvi")).toBe(
+      "Al-Fiqh ul Muyassar by Maulana Shafiqur Rahman Nadvi",
+    );
+    expect(cleanNodeDescription("Optional Module · Core text: Iḥyāʾ ʿUlūm al-Dīn by Imam Ghazālī")).toBe(
+      "Iḥyāʾ ʿUlūm al-Dīn by Imam Ghazālī",
+    );
+  });
+
+  it("keeps a non-core detail like 'PPT Based'", () => {
+    expect(cleanNodeDescription("Core Module · PPT Based")).toBe("PPT Based");
+    expect(
+      cleanNodeDescription("Optional Module · PPT Based · Core text: Ḥayāt aṣ-Ṣaḥābah by Shaykh Muḥammad Yūsuf"),
+    ).toBe("Ḥayāt aṣ-Ṣaḥābah by Shaykh Muḥammad Yūsuf · PPT Based");
   });
 });
