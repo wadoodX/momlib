@@ -35,7 +35,7 @@ export const RESOURCE_CATEGORIES: { value: ResourceCategory; label: string; icon
   { value: "quiz", label: "Quiz", icon: ListChecks },
   { value: "question_bank", label: "Question bank", icon: FileQuestion },
   { value: "worksheet", label: "Worksheet", icon: PencilRuler },
-  { value: "audio", label: "Audio", icon: Headphones },
+  { value: "audio", label: "NotebookLM", icon: Headphones },
   { value: "link", label: "Link", icon: Link2 },
   { value: "document", label: "Document", icon: FileType },
   { value: "other", label: "Other", icon: File },
