@@ -116,7 +116,9 @@ export function ResourcePreview({
   }
 
   if (preview.type === "pdf") {
-    return <PdfViewer url={preview.src} title={resource.title} heightClass={height} />;
+    // Stream through our same-origin proxy (no R2 CORS needed); the route
+    // re-checks published-chain + paid access server-side.
+    return <PdfViewer url={`/api/resources/${resource.id}/file`} title={resource.title} heightClass={height} />;
   }
 
   if (preview.type === "office") {
