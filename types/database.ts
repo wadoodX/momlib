@@ -257,16 +257,19 @@ export type Database = {
           user_id: string;
           chapter_id: string;
           viewed_at: string;
+          completed_at: string | null;
         };
         Insert: {
           user_id: string;
           chapter_id: string;
           viewed_at?: string;
+          completed_at?: string | null;
         };
         Update: {
           user_id?: string;
           chapter_id?: string;
           viewed_at?: string;
+          completed_at?: string | null;
         };
         Relationships: [
           {
